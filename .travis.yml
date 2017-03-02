@@ -1,9 +1,17 @@
 language: cpp
+compiler: clang
+
 os:
 - linux
 - osx
-script: bash -ex ./scripts/build.sh
-compiler: clang
+
+script:
+- mkdir build
+- cd build
+- cmake ../
+- make
+- make install
+
 before_install:
-  - sudo apt-get -qq update
-  - sudo apt-get install -y libasound2-dev
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get -qq update                ; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get install -y libasound2-dev ; fi
