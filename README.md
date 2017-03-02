@@ -1,5 +1,7 @@
 ![AudioEngine](/other/AudioEngineLogo.png?raw=true "AudioEngine")
 
+[![Build Status](https://travis-ci.org/modlfo/AudioEngine.svg?branch=master)](https://travis-ci.org/modlfo/AudioEngine) [![Build status](https://ci.appveyor.com/api/projects/status/x1f9u0w9nooc9f96?svg=true
+)](https://ci.appveyor.com/project/modlfo/audioengine)
 
 # AudioEngine
 
