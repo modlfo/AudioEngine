@@ -1,0 +1,5 @@
+language: cpp
+os:
+- linux
+- osx
+script: bash -ex ./scripts/build.sh
