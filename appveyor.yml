@@ -10,4 +10,9 @@ build_script:
   - nmake
   - nmake install
 
+after_build:
+  - 7z a AudioEngine.zip %APPVEYOR_BUILD_FOLDER%\install\AudioEngine.exe
 
+artifacts:
+  - path: AudioEngine.zip
+    name: AudioEngine
