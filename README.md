@@ -9,6 +9,14 @@ The AudioEngine is a simple console application that provides real-time audio pr
 
 For more information refer to the [VultPlatform](https://github.com/modlfo/VultPlatform/wiki) wiki.
 
+# Status
+
+This project is in early stages of development and it will evolve, therefore the API are unstable.
+
+# Using
+
+The AudioClient is intended to work with the (coming soon) AudioClient.
+
 # Install
 
 This application uses [JUCE](https://www.juce.com), therefore you need to have all the dependencies to build and use JUCE applications.
