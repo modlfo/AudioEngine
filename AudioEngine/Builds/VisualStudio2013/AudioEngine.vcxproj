@@ -83,7 +83,7 @@
       <ProgramDatabaseFile>$(IntDir)\AudioEngine.pdb</ProgramDatabaseFile>
       <SubSystem>Console</SubSystem>
       <LargeAddressAware>true</LargeAddressAware>
-      <AdditionalDependencies>luajit.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>lua51;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalOptions>/LIBPATH:../../../build/LuaJIT/LuaJIT/src/ %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <Bscmake>
@@ -127,7 +127,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <LargeAddressAware>true</LargeAddressAware>
-      <AdditionalDependencies>luajit.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>lua51;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalOptions>/LIBPATH:../../../build/LuaJIT/LuaJIT/src/ %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <Bscmake>
