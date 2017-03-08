@@ -10,7 +10,7 @@
 namespace BinaryData
 {
     extern const char*   processor_lua;
-    const int            processor_luaSize = 4138;
+    const int            processor_luaSize = 5235;
 
     // Points to the start of a list of resource names.
     extern const char* namedResourceList[];
