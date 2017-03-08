@@ -40,7 +40,7 @@
     </XCODE_MAC>
     <VS2013 targetFolder="Builds/VisualStudio2013" extraCompilerFlags="-I../../../build/LuaJIT/LuaJIT/src "
             extraLinkerFlags="/LIBPATH:../../../build/LuaJIT/LuaJIT/src/ "
-            externalLibraries="lua51">
+            externalLibraries="lua51.lib">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" winWarningLevel="4" generateManifest="1" winArchitecture="x64"
                        isDebug="1" optimisation="1" targetName="AudioEngine"/>
