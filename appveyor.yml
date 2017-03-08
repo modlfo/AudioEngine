@@ -15,5 +15,5 @@ after_build:
   - dir
 
 artifacts:
-  - path: AudioEngine.zip
+  - path: build\AudioEngine.zip
     name: AudioEngine
