@@ -50,13 +50,13 @@ class Audio : public AudioAppComponent
 
    const OwnedArray<AudioIODeviceType> &getAvailableDeviceTypes(void);
 
-   String showConfig(void);
-
    String getConfig(void);
 
    var getAudioDeviceSetup(void);
 
    var getCurrentAudioDeviceType(void);
+
+   var setCurrentAudioDeviceType(var arg);
 
    var getCurrentAudioDevice(void);
 
@@ -116,6 +116,9 @@ class AudioEngine : public ServerEvaluator
    // Function 'audio.getCurrentAudioDeviceType()'
    static var getCurrentAudioDeviceType(const var::NativeFunctionArgs &args);
 
+   // Function 'audio.setCurrentAudioDeviceType()'
+   static var setCurrentAudioDeviceType(const var::NativeFunctionArgs &args);
+
    // Function 'audio.getCurrentAudioDevice()'
    static var getCurrentAudioDevice(const var::NativeFunctionArgs &args);
 
@@ -127,9 +130,6 @@ class AudioEngine : public ServerEvaluator
 
    // Function 'audio.getMidiDevices()'
    static var getMidiDevices(const var::NativeFunctionArgs &args);
-
-   // Function 'audio.showConfig()'
-   static var showConfig(const var::NativeFunctionArgs &args);
 
    // Function 'audio.loadFiles()'
    static var loadFiles(const var::NativeFunctionArgs &args);

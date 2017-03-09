@@ -98,15 +98,6 @@ const OwnedArray<AudioIODeviceType> &Audio::getAvailableDeviceTypes(void)
    return deviceManager.getAvailableDeviceTypes();
 }
 
-String Audio::showConfig(void)
-{
-   AudioDeviceSelectorComponent selector(deviceManager, 2, 2, 2, 2, true, true, true, false);
-   selector.setSize(600, 400);
-   DialogWindow::showModalDialog("Audio & MIDI Settings", &selector, this,
-                                 Colours::lightgrey, true, true, true);
-   return getConfig();
-}
-
 String Audio::getConfig(void)
 {
    return deviceManager.createStateXml()->createDocument(String());
@@ -147,6 +138,12 @@ var Audio::setAudioDeviceSetup(var arg)
 
 var Audio::getCurrentAudioDeviceType()
 {
+   return var(deviceManager.getCurrentAudioDeviceType());
+}
+
+var Audio::setCurrentAudioDeviceType(var arg)
+{
+   deviceManager.setCurrentAudioDeviceType(arg.toString(), true);
    return var(deviceManager.getCurrentAudioDeviceType());
 }
 
@@ -237,8 +234,6 @@ AudioEngine::AudioEngine()
    audio_js->setMethod("getCurrentAudioDevice", AudioEngine::getCurrentAudioDevice);
    // Defines 'audio.getMidiDevices()'
    audio_js->setMethod("getMidiDevices", AudioEngine::getMidiDevices);
-   // Defines 'audio.showConfig()'
-   audio_js->setMethod("showConfig", AudioEngine::showConfig);
    // Defines 'audio.loadFiles([...])'
    audio_js->setMethod("loadFiles", AudioEngine::loadFiles);
 
@@ -319,13 +314,19 @@ var AudioEngine::getAudioDevices(const var::NativeFunctionArgs &args)
       device_type->scanForDevices();
       DynamicObject *elem = new DynamicObject();
       elem->setProperty("type", var(device_type->getTypeName()));
-      var elements;
-      StringArray names = device_type->getDeviceNames();
-      for (int j = 0; j < names.size(); j++)
+      var outputs, inputs;
+      StringArray output_names = device_type->getDeviceNames();
+      for (int j = 0; j < output_names.size(); j++)
       {
-         elements.append(var(names[j]));
+         outputs.append(var(output_names[j]));
       }
-      elem->setProperty("devices", elements);
+      StringArray input_names = device_type->getDeviceNames(true);
+      for (int j = 0; j < input_names.size(); j++)
+      {
+         inputs.append(var(input_names[j]));
+      }
+      elem->setProperty("outputs", outputs);
+      elem->setProperty("inputs", inputs);
       result.append(var(elem)); // using append makes it an array
    }
 
@@ -337,6 +338,13 @@ var AudioEngine::getCurrentAudioDeviceType(const var::NativeFunctionArgs &args)
 {
    var result = AudioInstance::get().getCurrentAudioDeviceType();
    return makeResponse("getCurrentAudioDeviceTypeResponse", result);
+}
+
+// Function 'audio.setCurrentAudioDeviceType()'
+var AudioEngine::setCurrentAudioDeviceType(const var::NativeFunctionArgs &args)
+{
+   var result = AudioInstance::get().setCurrentAudioDeviceType(args.arguments[0]);
+   return makeResponse("setCurrentAudioDeviceTypeResponse", result);
 }
 
 // Function 'audio.getCurrentAudioDevice()'
@@ -394,13 +402,6 @@ var AudioEngine::getMidiDevices(const var::NativeFunctionArgs &args)
    result->setProperty("outputs", outputs);
 
    return makeResponse("getMidiDevicesResponse", result);
-}
-
-// Function 'audio.showConfig()'
-var AudioEngine::showConfig(const var::NativeFunctionArgs &args)
-{
-   AudioInstance::get().showConfig();
-   return makeResponse("status", getStatus(args));
 }
 
 var AudioEngine::loadFiles(const var::NativeFunctionArgs &args)
