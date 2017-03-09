@@ -45,6 +45,7 @@ class Main : public JUCEApplication
       // This method is where you should put your application's initialisation code..
       server.start(8000, "127.0.0.1");
       server.setEngine((ServerEvaluator *)&engine);
+      printf("AudioEngine Running\n");
    }
 
    void shutdown() override

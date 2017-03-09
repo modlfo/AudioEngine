@@ -29,10 +29,18 @@ Audio::Audio()
    // prepares the application properties
    PropertiesFile::Options options;
    options.applicationName = String("AudioEngine");
+   options.filenameSuffix = "settings";
+   options.osxLibrarySubFolder = "Preferences";
    options.commonToAllUsers = true;
    properties.setStorageParameters(options);
 
-   setAudioChannels(2, 2);
+   appProperties.setStorageParameters(options);
+
+   ScopedPointer<XmlElement> savedAudioState(appProperties.getUserSettings()->getXmlValue("audioDeviceState"));
+
+   String audioError = deviceManager.initialise(256, 256, savedAudioState, true);
+   deviceManager.addAudioCallback(&audioSourcePlayer);
+   audioSourcePlayer.setSource(this);
    deviceManager.addMidiInputCallback(String::empty, &midiMessageCollector);
    deviceManager.restartLastAudioDevice();
    AudioIODevice *device = deviceManager.getCurrentAudioDevice();
@@ -41,7 +49,9 @@ Audio::Audio()
 
 Audio::~Audio()
 {
-   shutdownAudio();
+   audioSourcePlayer.setSource(nullptr);
+   deviceManager.removeAudioCallback(&audioSourcePlayer);
+   deviceManager.closeAudioDevice();
 }
 
 void Audio::start()
@@ -133,6 +143,13 @@ var Audio::setAudioDeviceSetup(var arg)
    setup.inputChannels = BigInteger((int)data->getProperty("inputChannels"));
    setup.inputChannels = BigInteger((int)data->getProperty("outputChannels"));
    deviceManager.setAudioDeviceSetup(setup, true);
+
+   // Saves the settings
+   ScopedPointer<XmlElement> audioState(deviceManager.createStateXml());
+
+   appProperties.getUserSettings()->setValue("audioDeviceState", audioState);
+   appProperties.getUserSettings()->saveIfNeeded();
+
    return getAudioDeviceSetup();
 }
 

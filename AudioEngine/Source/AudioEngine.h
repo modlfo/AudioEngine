@@ -31,7 +31,7 @@ THE SOFTWARE.
 #include "Server.h"
 
 //==============================================================================
-class Audio : public AudioAppComponent
+class Audio : public AudioSource
 {
  public:
    Audio();
@@ -68,6 +68,12 @@ class Audio : public AudioAppComponent
    MidiMessageCollector midiMessageCollector;
    LuaVM lua;
    ApplicationProperties properties;
+
+   AudioDeviceManager deviceManager;
+
+   AudioSourcePlayer audioSourcePlayer;
+
+   ApplicationProperties appProperties;
 
    const float *in0_pre;
    const float *in1_pre;
