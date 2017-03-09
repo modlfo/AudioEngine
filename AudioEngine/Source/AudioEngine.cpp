@@ -44,7 +44,8 @@ Audio::Audio()
    deviceManager.addMidiInputCallback(String::empty, &midiMessageCollector);
    deviceManager.restartLastAudioDevice();
    AudioIODevice *device = deviceManager.getCurrentAudioDevice();
-   device->stop();
+   if (device)
+      device->stop();
 }
 
 Audio::~Audio()
@@ -160,13 +161,14 @@ var Audio::getCurrentAudioDeviceType()
 
 var Audio::setCurrentAudioDeviceType(var arg)
 {
-   deviceManager.setCurrentAudioDeviceType(arg.toString(), true);
+   deviceManager.setCurrentAudioDeviceType(arg.toString(), false);
    return var(deviceManager.getCurrentAudioDeviceType());
 }
 
 var stringArrayToVar(StringArray array)
 {
-   var result;
+   Array<var> empty;
+   var result(empty);
    for (int i = 0; i < array.size(); i++)
    {
       result.append(var(array[i]));
@@ -247,6 +249,8 @@ AudioEngine::AudioEngine()
    audio_js->setMethod("setAudioDeviceSetup", AudioEngine::setAudioDeviceSetup);
    // Defines 'audio.getCurrentAudioDeviceType()'
    audio_js->setMethod("getCurrentAudioDeviceType", AudioEngine::getCurrentAudioDeviceType);
+   // Defines 'audio.setCurrentAudioDeviceType()'
+   audio_js->setMethod("setCurrentAudioDeviceType", AudioEngine::setCurrentAudioDeviceType);
    // Defines 'audio.getCurrentAudioDevice()'
    audio_js->setMethod("getCurrentAudioDevice", AudioEngine::getCurrentAudioDevice);
    // Defines 'audio.getMidiDevices()'
@@ -361,7 +365,7 @@ var AudioEngine::getCurrentAudioDeviceType(const var::NativeFunctionArgs &args)
 var AudioEngine::setCurrentAudioDeviceType(const var::NativeFunctionArgs &args)
 {
    var result = AudioInstance::get().setCurrentAudioDeviceType(args.arguments[0]);
-   return makeResponse("setCurrentAudioDeviceTypeResponse", result);
+   return makeResponse("getCurrentAudioDeviceTypeResponse", result);
 }
 
 // Function 'audio.getCurrentAudioDevice()'
