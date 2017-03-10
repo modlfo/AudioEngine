@@ -130,28 +130,52 @@ var Audio::getAudioDeviceSetup()
    return result;
 }
 
-var Audio::setAudioDeviceSetup(var arg)
+var Audio::setAudioDeviceSampleRate(var arg)
 {
-   DynamicObject *data = arg.getDynamicObject();
    AudioDeviceManager::AudioDeviceSetup setup;
    deviceManager.getAudioDeviceSetup(setup);
-   setup.outputDeviceName = data->getProperty("outputDeviceName");
-   setup.inputDeviceName = data->getProperty("inputDeviceName");
-   setup.sampleRate = data->getProperty("sampleRate");
-   setup.bufferSize = data->getProperty("bufferSize");
-   setup.useDefaultInputChannels = data->getProperty("useDefaultInputChannels");
-   setup.useDefaultOutputChannels = data->getProperty("useDefaultOutputChannels");
-   setup.inputChannels = BigInteger((int)data->getProperty("inputChannels"));
-   setup.inputChannels = BigInteger((int)data->getProperty("outputChannels"));
+   setup.sampleRate = arg;
    deviceManager.setAudioDeviceSetup(setup, true);
+   saveSettings();
+   return getAudioDeviceSetup();
+}
 
+var Audio::setAudioDeviceBufferSize(var arg)
+{
+   AudioDeviceManager::AudioDeviceSetup setup;
+   deviceManager.getAudioDeviceSetup(setup);
+   setup.bufferSize = arg;
+   deviceManager.setAudioDeviceSetup(setup, true);
+   saveSettings();
+   return getAudioDeviceSetup();
+}
+
+var Audio::setAudioDeviceInputName(var arg)
+{
+   AudioDeviceManager::AudioDeviceSetup setup;
+   deviceManager.getAudioDeviceSetup(setup);
+   setup.inputDeviceName = arg;
+   deviceManager.setAudioDeviceSetup(setup, true);
+   saveSettings();
+   return getAudioDeviceSetup();
+}
+
+var Audio::setAudioDeviceOutputName(var arg)
+{
+   AudioDeviceManager::AudioDeviceSetup setup;
+   deviceManager.getAudioDeviceSetup(setup);
+   setup.outputDeviceName = arg;
+   deviceManager.setAudioDeviceSetup(setup, true);
+   return getAudioDeviceSetup();
+}
+
+void Audio::saveSettings(void)
+{
    // Saves the settings
    ScopedPointer<XmlElement> audioState(deviceManager.createStateXml());
 
    appProperties.getUserSettings()->setValue("audioDeviceState", audioState);
    appProperties.getUserSettings()->saveIfNeeded();
-
-   return getAudioDeviceSetup();
 }
 
 var Audio::getCurrentAudioDeviceType()
@@ -202,7 +226,6 @@ var Audio::getCurrentAudioDevice()
    AudioIODevice *device = deviceManager.getCurrentAudioDevice();
    if (device)
    {
-      result->setProperty("name", var(device->getName()));
       result->setProperty("outputChannelNames", stringArrayToVar(device->getOutputChannelNames()));
       result->setProperty("inputChannelNames", stringArrayToVar(device->getInputChannelNames()));
       result->setProperty("availableSampleRates", floatArrayToVar(device->getAvailableSampleRates()));
@@ -245,8 +268,6 @@ AudioEngine::AudioEngine()
    audio_js->setMethod("getAudioDevices", AudioEngine::getAudioDevices);
    // Defines 'audio.getAudioDeviceSetup()'
    audio_js->setMethod("getAudioDeviceSetup", AudioEngine::getAudioDeviceSetup);
-   // Defines 'audio.setAudioDeviceSetup()'
-   audio_js->setMethod("setAudioDeviceSetup", AudioEngine::setAudioDeviceSetup);
    // Defines 'audio.getCurrentAudioDeviceType()'
    audio_js->setMethod("getCurrentAudioDeviceType", AudioEngine::getCurrentAudioDeviceType);
    // Defines 'audio.setCurrentAudioDeviceType()'
@@ -257,6 +278,11 @@ AudioEngine::AudioEngine()
    audio_js->setMethod("getMidiDevices", AudioEngine::getMidiDevices);
    // Defines 'audio.loadFiles([...])'
    audio_js->setMethod("loadFiles", AudioEngine::loadFiles);
+
+   audio_js->setMethod("setAudioDeviceSampleRate", AudioEngine::setAudioDeviceSampleRate);
+   audio_js->setMethod("setAudioDeviceBufferSize", AudioEngine::setAudioDeviceBufferSize);
+   audio_js->setMethod("setAudioDeviceInputName", AudioEngine::setAudioDeviceInputName);
+   audio_js->setMethod("setAudioDeviceOutputName", AudioEngine::setAudioDeviceOutputName);
 
    // Sets 'audio.repeat = true'
    audio_js->setProperty("repeat", var(true));
@@ -382,21 +408,6 @@ var AudioEngine::getAudioDeviceSetup(const var::NativeFunctionArgs &args)
    return makeResponse("getAudioDeviceSetupResponse", result);
 }
 
-// Function 'audio.setAudioDeviceSetup()'
-var AudioEngine::setAudioDeviceSetup(const var::NativeFunctionArgs &args)
-{
-   var result;
-   if (args.numArguments == 1)
-   {
-      result = AudioInstance::get().setAudioDeviceSetup(args.arguments[0]);
-      return makeResponse("getAudioDeviceSetupResponse", result);
-   }
-   else
-   {
-      return makeResponse("fail", var("setAudioDeviceSetup"));
-   }
-}
-
 // Function 'audio.getMidiDevices()'
 var AudioEngine::getMidiDevices(const var::NativeFunctionArgs &args)
 {
@@ -439,4 +450,32 @@ var AudioEngine::loadFiles(const var::NativeFunctionArgs &args)
    //   return (var(false));
 
    return makeResponse("status", getStatus(args));
+}
+
+// Function 'audio.setAudioDeviceSampleRate()'
+var AudioEngine::setAudioDeviceSampleRate(const var::NativeFunctionArgs &args)
+{
+   var result = AudioInstance::get().setAudioDeviceSampleRate(args.arguments[0]);
+   return makeResponse("getAudioDeviceSetupResponse", result);
+}
+
+// Function 'audio.setAudioDeviceBufferSize()'
+var AudioEngine::setAudioDeviceBufferSize(const var::NativeFunctionArgs &args)
+{
+   var result = AudioInstance::get().setAudioDeviceBufferSize(args.arguments[0]);
+   return makeResponse("getAudioDeviceSetupResponse", result);
+}
+
+// Function 'audio.setAudioDeviceInputName()'
+var AudioEngine::setAudioDeviceInputName(const var::NativeFunctionArgs &args)
+{
+   var result = AudioInstance::get().setAudioDeviceInputName(args.arguments[0]);
+   return makeResponse("getAudioDeviceSetupResponse", result);
+}
+
+// Function 'audio.setAudioDeviceOutputName()'
+var AudioEngine::setAudioDeviceOutputName(const var::NativeFunctionArgs &args)
+{
+   var result = AudioInstance::get().setAudioDeviceOutputName(args.arguments[0]);
+   return makeResponse("getAudioDeviceSetupResponse", result);
 }

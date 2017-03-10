@@ -62,6 +62,16 @@ class Audio : public AudioSource
 
    var setAudioDeviceSetup(var arg);
 
+   var setAudioDeviceSampleRate(var arg);
+
+   var setAudioDeviceBufferSize(var arg);
+
+   var setAudioDeviceInputName(var arg);
+
+   var setAudioDeviceOutputName(var arg);
+
+   void saveSettings(void);
+
    var loadFiles(var files);
 
  private:
@@ -131,9 +141,6 @@ class AudioEngine : public ServerEvaluator
    // Function 'audio.getAudioDeviceSetup()'
    static var getAudioDeviceSetup(const var::NativeFunctionArgs &args);
 
-   // Function 'audio.setAudioDeviceSetup(data)'
-   static var setAudioDeviceSetup(const var::NativeFunctionArgs &args);
-
    // Function 'audio.getMidiDevices()'
    static var getMidiDevices(const var::NativeFunctionArgs &args);
 
@@ -142,6 +149,18 @@ class AudioEngine : public ServerEvaluator
 
    // Sets the property var in 'audio.status'
    static var setStatusProperty(const var::NativeFunctionArgs &args, String, var);
+
+   // Function 'audio.setAudioDeviceSampleRate()'
+   static var setAudioDeviceSampleRate(const var::NativeFunctionArgs &args);
+
+   // Function 'audio.setAudioDeviceBufferSize()'
+   static var setAudioDeviceBufferSize(const var::NativeFunctionArgs &args);
+
+   // Function 'audio.setAudioDeviceInputName()'
+   static var setAudioDeviceInputName(const var::NativeFunctionArgs &args);
+
+   // Function 'audio.setAudioDeviceOutputName()'
+   static var setAudioDeviceOutputName(const var::NativeFunctionArgs &args);
 
    // Returns 'audio.status'
    static var getStatus(const var::NativeFunctionArgs &args);
