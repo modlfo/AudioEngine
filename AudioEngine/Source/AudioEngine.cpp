@@ -202,7 +202,8 @@ var stringArrayToVar(StringArray array)
 
 var floatArrayToVar(Array<double> array)
 {
-   var result;
+   Array<var> empty;
+   var result(empty);
    for (int i = 0; i < array.size(); i++)
    {
       result.append(var(array[i]));
@@ -212,7 +213,8 @@ var floatArrayToVar(Array<double> array)
 
 var intArrayToVar(Array<int> array)
 {
-   var result;
+   Array<var> empty;
+   var result(empty);
    for (int i = 0; i < array.size(); i++)
    {
       result.append(var(array[i]));
@@ -361,7 +363,9 @@ var AudioEngine::getAudioDevices(const var::NativeFunctionArgs &args)
       device_type->scanForDevices();
       DynamicObject *elem = new DynamicObject();
       elem->setProperty("type", var(device_type->getTypeName()));
-      var outputs, inputs;
+      Array<var> empty;
+      var outputs(empty);
+      var inputs(empty);
       StringArray output_names = device_type->getDeviceNames();
       for (int j = 0; j < output_names.size(); j++)
       {
@@ -377,35 +381,35 @@ var AudioEngine::getAudioDevices(const var::NativeFunctionArgs &args)
       result.append(var(elem)); // using append makes it an array
    }
 
-   return makeResponse("getAudioDevicesResponse", result);
+   return makeResponse("audioDevices", result);
 }
 
 // Function 'audio.getCurrentAudioDeviceType()'
 var AudioEngine::getCurrentAudioDeviceType(const var::NativeFunctionArgs &args)
 {
    var result = AudioInstance::get().getCurrentAudioDeviceType();
-   return makeResponse("getCurrentAudioDeviceTypeResponse", result);
+   return makeResponse("audioDeviceType", result);
 }
 
 // Function 'audio.setCurrentAudioDeviceType()'
 var AudioEngine::setCurrentAudioDeviceType(const var::NativeFunctionArgs &args)
 {
    var result = AudioInstance::get().setCurrentAudioDeviceType(args.arguments[0]);
-   return makeResponse("getCurrentAudioDeviceTypeResponse", result);
+   return makeResponse("audioDeviceType", result);
 }
 
 // Function 'audio.getCurrentAudioDevice()'
 var AudioEngine::getCurrentAudioDevice(const var::NativeFunctionArgs &args)
 {
    var result = AudioInstance::get().getCurrentAudioDevice();
-   return makeResponse("getCurrentAudioDeviceResponse", result);
+   return makeResponse("currentAudioDevice", result);
 }
 
 // Function 'audio.getAudioDeviceSetup()'
 var AudioEngine::getAudioDeviceSetup(const var::NativeFunctionArgs &args)
 {
    var result = AudioInstance::get().getAudioDeviceSetup();
-   return makeResponse("getAudioDeviceSetupResponse", result);
+   return makeResponse("audioDeviceSetup", result);
 }
 
 // Function 'audio.getMidiDevices()'
@@ -433,7 +437,7 @@ var AudioEngine::getMidiDevices(const var::NativeFunctionArgs &args)
    result->setProperty("inputs", inputs);
    result->setProperty("outputs", outputs);
 
-   return makeResponse("getMidiDevicesResponse", result);
+   return makeResponse("midiDevices", result);
 }
 
 var AudioEngine::loadFiles(const var::NativeFunctionArgs &args)
@@ -456,26 +460,26 @@ var AudioEngine::loadFiles(const var::NativeFunctionArgs &args)
 var AudioEngine::setAudioDeviceSampleRate(const var::NativeFunctionArgs &args)
 {
    var result = AudioInstance::get().setAudioDeviceSampleRate(args.arguments[0]);
-   return makeResponse("getAudioDeviceSetupResponse", result);
+   return makeResponse("audioDeviceSetup", result);
 }
 
 // Function 'audio.setAudioDeviceBufferSize()'
 var AudioEngine::setAudioDeviceBufferSize(const var::NativeFunctionArgs &args)
 {
    var result = AudioInstance::get().setAudioDeviceBufferSize(args.arguments[0]);
-   return makeResponse("getAudioDeviceSetupResponse", result);
+   return makeResponse("audioDeviceSetup", result);
 }
 
 // Function 'audio.setAudioDeviceInputName()'
 var AudioEngine::setAudioDeviceInputName(const var::NativeFunctionArgs &args)
 {
    var result = AudioInstance::get().setAudioDeviceInputName(args.arguments[0]);
-   return makeResponse("getAudioDeviceSetupResponse", result);
+   return makeResponse("audioDeviceSetup", result);
 }
 
 // Function 'audio.setAudioDeviceOutputName()'
 var AudioEngine::setAudioDeviceOutputName(const var::NativeFunctionArgs &args)
 {
    var result = AudioInstance::get().setAudioDeviceOutputName(args.arguments[0]);
-   return makeResponse("getAudioDeviceSetupResponse", result);
+   return makeResponse("audioDeviceSetup", result);
 }
