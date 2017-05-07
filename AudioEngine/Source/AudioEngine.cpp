@@ -38,11 +38,10 @@ Audio::Audio()
 
    ScopedPointer<XmlElement> savedAudioState(appProperties.getUserSettings()->getXmlValue("audioDeviceState"));
 
-   String audioError = deviceManager.initialise(256, 256, savedAudioState, true);
+   String audioError = deviceManager.initialise(2, 2, savedAudioState, true);
    deviceManager.addAudioCallback(&audioSourcePlayer);
    audioSourcePlayer.setSource(this);
    deviceManager.addMidiInputCallback(String::empty, &midiMessageCollector);
-   deviceManager.restartLastAudioDevice();
    AudioIODevice *device = deviceManager.getCurrentAudioDevice();
    if (device)
       device->stop();

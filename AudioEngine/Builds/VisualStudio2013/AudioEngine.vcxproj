@@ -70,7 +70,7 @@
       <WarningLevel>Level4</WarningLevel>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <AdditionalOptions>-I../../../build/LuaJIT/LuaJIT/src %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>-I../../../build/LuaJIT/LuaJIT/src -I../../../../ASIOSDK2.3/common %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -112,7 +112,7 @@
       <WarningLevel>Level4</WarningLevel>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <AdditionalOptions>-I../../../build/LuaJIT/LuaJIT/src %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>-I../../../build/LuaJIT/LuaJIT/src -I../../../../ASIOSDK2.3/common %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>

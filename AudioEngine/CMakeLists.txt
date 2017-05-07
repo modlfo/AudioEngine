@@ -22,12 +22,12 @@ endif(APPLE)
 
 if(WIN32)
    add_custom_target(AudioEngineTarget ALL
-                  COMMAND msbuild  /property:Configuration=Release AudioEngine.vcxproj
+                  COMMAND msbuild  /property:Configuration=Release AudioEngine_ConsoleApp.vcxproj
                   VERBATIM
                   DEPENDS LuaJIT
                   WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Builds/VisualStudio2013
                   COMMENT "Building the AudioEngine")
-   set(AUDIOENGINE_PATH Builds/VisualStudio2013/x64/Release)
+   set(AUDIOENGINE_PATH Builds/VisualStudio2013/x64/Release/ConsoleApp)
 endif(WIN32)
 
 if(WIN32)
