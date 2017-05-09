@@ -11,7 +11,7 @@ endif(UNIX AND NOT APPLE)
 if(APPLE)
    add_custom_target(AudioEngineTarget ALL
                   COMMAND sed -i.bu "s/DEAD_CODE_STRIPPING = YES/DEAD_CODE_STRIPPING = NO/g" AudioEngine.xcodeproj/project.pbxproj
-                  COMMAND xcodebuild -target "AudioEngine - ConsoleApp"
+                  COMMAND xcodebuild -target "AudioEngine (ConsoleApp)"
                   VERBATIM
                   DEPENDS LuaJIT
                   WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Builds/MacOSX
@@ -22,12 +22,12 @@ endif(APPLE)
 
 if(WIN32)
    add_custom_target(AudioEngineTarget ALL
-                  COMMAND msbuild  /property:Configuration=Release AudioEngine_ConsoleApp.vcxproj
+                  COMMAND msbuild  /property:Configuration=Release AudioEngine.vcxproj
                   VERBATIM
                   DEPENDS LuaJIT
                   WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Builds/VisualStudio2013
                   COMMENT "Building the AudioEngine")
-   set(AUDIOENGINE_PATH Builds/VisualStudio2013/x64/Release/ConsoleApp)
+   set(AUDIOENGINE_PATH Builds/VisualStudio2013/x64/Release)
 endif(WIN32)
 
 if(WIN32)
