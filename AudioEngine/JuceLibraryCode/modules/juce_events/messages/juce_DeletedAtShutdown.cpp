@@ -2,73 +2,67 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2016 - ROLI Ltd.
 
-   JUCE is an open source library subject to commercial or open-source
-   licensing.
+   Permission is granted to use this software under the terms of the ISC license
+   http://www.isc.org/downloads/software-support-policy/isc-license/
 
-   The code included in this file is provided under the terms of the ISC license
-   http://www.isc.org/downloads/software-support-policy/isc-license. Permission
-   To use, copy, modify, and/or distribute this software for any purpose with or
-   without fee is hereby granted provided that the above copyright notice and
-   this permission notice appear in all copies.
+   Permission to use, copy, modify, and/or distribute this software for any
+   purpose with or without fee is hereby granted, provided that the above
+   copyright notice and this permission notice appear in all copies.
 
-   JUCE IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL WARRANTIES, WHETHER
-   EXPRESSED OR IMPLIED, INCLUDING MERCHANTABILITY AND FITNESS FOR PURPOSE, ARE
-   DISCLAIMED.
+   THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH REGARD
+   TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+   FITNESS. IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT,
+   OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+   USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+   TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE
+   OF THIS SOFTWARE.
+
+   -----------------------------------------------------------------------------
+
+   To release a closed-source product which uses other parts of JUCE not
+   licensed under the ISC terms, commercial licenses are available: visit
+   www.juce.com for more information.
 
   ==============================================================================
 */
 
-static SpinLock deletedAtShutdownLock; // use a spin lock because it can be statically initialised
-
-static Array<DeletedAtShutdown*>& getDeletedAtShutdownObjects()
-{
-    static Array<DeletedAtShutdown*> objects;
-    return objects;
-}
+static SpinLock deletedAtShutdownLock;
 
 DeletedAtShutdown::DeletedAtShutdown()
 {
     const SpinLock::ScopedLockType sl (deletedAtShutdownLock);
-    getDeletedAtShutdownObjects().add (this);
+    getObjects().add (this);
 }
 
 DeletedAtShutdown::~DeletedAtShutdown()
 {
     const SpinLock::ScopedLockType sl (deletedAtShutdownLock);
-    getDeletedAtShutdownObjects().removeFirstMatchingValue (this);
+    getObjects().removeFirstMatchingValue (this);
 }
-
-#if JUCE_MSVC
- // Disable unreachable code warning, in case the compiler manages to figure out that
- // you have no classes of DeletedAtShutdown that could throw an exception in their destructor.
- #pragma warning (push)
- #pragma warning (disable: 4702)
-#endif
 
 void DeletedAtShutdown::deleteAll()
 {
     // make a local copy of the array, so it can't get into a loop if something
     // creates another DeletedAtShutdown object during its destructor.
-    Array<DeletedAtShutdown*> localCopy;
+    Array <DeletedAtShutdown*> localCopy;
 
     {
         const SpinLock::ScopedLockType sl (deletedAtShutdownLock);
-        localCopy = getDeletedAtShutdownObjects();
+        localCopy = getObjects();
     }
 
     for (int i = localCopy.size(); --i >= 0;)
     {
         JUCE_TRY
         {
-            auto* deletee = localCopy.getUnchecked(i);
+            DeletedAtShutdown* deletee = localCopy.getUnchecked(i);
 
             // double-check that it's not already been deleted during another object's destructor.
             {
                 const SpinLock::ScopedLockType sl (deletedAtShutdownLock);
-
-                if (! getDeletedAtShutdownObjects().contains (deletee))
+                if (! getObjects().contains (deletee))
                     deletee = nullptr;
             }
 
@@ -77,13 +71,15 @@ void DeletedAtShutdown::deleteAll()
         JUCE_CATCH_EXCEPTION
     }
 
-    // if this fails, then it's likely that some new DeletedAtShutdown objects were
-    // created while executing the destructors of the other ones.
-    jassert (getDeletedAtShutdownObjects().isEmpty());
+    // if no objects got re-created during shutdown, this should have been emptied by their
+    // destructors
+    jassert (getObjects().size() == 0);
 
-    getDeletedAtShutdownObjects().clear(); // just to make sure the array doesn't have any memory still allocated
+    getObjects().clear(); // just to make sure the array doesn't have any memory still allocated
 }
 
-#if JUCE_MSVC
- #pragma warning (pop)
-#endif
+Array <DeletedAtShutdown*>& DeletedAtShutdown::getObjects()
+{
+    static Array <DeletedAtShutdown*> objects;
+    return objects;
+}

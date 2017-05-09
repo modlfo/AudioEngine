@@ -2,24 +2,22 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2015 - ROLI Ltd.
 
-   JUCE is an open source library subject to commercial or open-source
-   licensing.
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   Details of these licenses can be found at: www.gnu.org/licenses
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
+   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-   Or: You may also use this code under the terms of the GPL v3 (see
-   www.gnu.org/licenses).
+   ------------------------------------------------------------------------------
 
-   JUCE IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL WARRANTIES, WHETHER
-   EXPRESSED OR IMPLIED, INCLUDING MERCHANTABILITY AND FITNESS FOR PURPOSE, ARE
-   DISCLAIMED.
+   To release a closed-source product which uses JUCE, commercial licenses are
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
@@ -42,7 +40,8 @@ public:
         : sourceDetails (desc, sourceComponent, Point<int>()),
           image (im), owner (ddc),
           mouseDragSource (mouseSource),
-          imageOffset (offset)
+          imageOffset (offset),
+          hasCheckedForExternalDrag (false)
     {
         updateSize();
 
@@ -212,7 +211,7 @@ private:
     DragAndDropContainer& owner;
     WeakReference<Component> mouseDragSource, currentlyOverComp;
     const Point<int> imageOffset;
-    bool hasCheckedForExternalDrag = false;
+    bool hasCheckedForExternalDrag;
     Time lastTimeOverTarget;
 
     void updateSize()
@@ -295,6 +294,27 @@ private:
                 target->itemDragMove (details);
     }
 
+    struct ExternalDragAndDropMessage  : public CallbackMessage
+    {
+        ExternalDragAndDropMessage (const StringArray& f, bool canMove)
+            : files (f), canMoveFiles (canMove)
+        {}
+
+        ExternalDragAndDropMessage (const String& t) : text (t), canMoveFiles() {}
+
+        void messageCallback() override
+        {
+            if (text.isEmpty())
+                DragAndDropContainer::performExternalDragDropOfFiles (files, canMoveFiles);
+            else
+                DragAndDropContainer::performExternalDragDropOfText (text);
+        }
+
+        String text;
+        StringArray files;
+        bool canMoveFiles;
+    };
+
     void checkForExternalDrag (DragAndDropTarget::SourceDetails& details, Point<int> screenPos)
     {
         if (! hasCheckedForExternalDrag)
@@ -302,26 +322,21 @@ private:
             if (Desktop::getInstance().findComponentAt (screenPos) == nullptr)
             {
                 hasCheckedForExternalDrag = true;
+                StringArray files;
+                String text;
+                bool canMoveFiles = false;
 
                 if (ModifierKeys::getCurrentModifiersRealtime().isAnyMouseButtonDown())
                 {
-                    StringArray files;
-                    bool canMoveFiles = false;
-
                     if (owner.shouldDropFilesWhenDraggedExternally (details, files, canMoveFiles) && ! files.isEmpty())
                     {
-                        MessageManager::callAsync ([=]()  { DragAndDropContainer::performExternalDragDropOfFiles (files, canMoveFiles); });
+                        (new ExternalDragAndDropMessage (files, canMoveFiles))->post();
                         deleteSelf();
-                        return;
                     }
-
-                    String text;
-
-                    if (owner.shouldDropTextWhenDraggedExternally (details, text) && text.isNotEmpty())
+                    else if (owner.shouldDropTextWhenDraggedExternally (details, text) && text.isNotEmpty())
                     {
-                        MessageManager::callAsync ([=]()  { DragAndDropContainer::performExternalDragDropOfText (text); });
+                        (new ExternalDragAndDropMessage (text))->post();
                         deleteSelf();
-                        return;
                     }
                 }
             }

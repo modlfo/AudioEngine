@@ -2,24 +2,22 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2015 - ROLI Ltd.
 
-   JUCE is an open source library subject to commercial or open-source
-   licensing.
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   Details of these licenses can be found at: www.gnu.org/licenses
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
+   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-   Or: You may also use this code under the terms of the GPL v3 (see
-   www.gnu.org/licenses).
+   ------------------------------------------------------------------------------
 
-   JUCE IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL WARRANTIES, WHETHER
-   EXPRESSED OR IMPLIED, INCLUDING MERCHANTABILITY AND FITNESS FOR PURPOSE, ARE
-   DISCLAIMED.
+   To release a closed-source product which uses JUCE, commercial licenses are
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
@@ -27,17 +25,20 @@
 static uint32 lastUniquePeerID = 1;
 
 //==============================================================================
-ComponentPeer::ComponentPeer (Component& comp, int flags)
+ComponentPeer::ComponentPeer (Component& comp, const int flags)
     : component (comp),
       styleFlags (flags),
-      uniqueID (lastUniquePeerID += 2) // increment by 2 so that this can never hit 0
+      constrainer (nullptr),
+      lastDragAndDropCompUnderMouse (nullptr),
+      uniqueID (lastUniquePeerID += 2), // increment by 2 so that this can never hit 0
+      isWindowMinimised (false)
 {
     Desktop::getInstance().peers.add (this);
 }
 
 ComponentPeer::~ComponentPeer()
 {
-    auto& desktop = Desktop::getInstance();
+    Desktop& desktop = Desktop::getInstance();
     desktop.peers.removeFirstMatchingValue (this);
     desktop.triggerFocusCallback();
 }
@@ -55,9 +56,15 @@ ComponentPeer* ComponentPeer::getPeer (const int index) noexcept
 
 ComponentPeer* ComponentPeer::getPeerFor (const Component* const component) noexcept
 {
-    for (auto* peer : Desktop::getInstance().peers)
+    const Array<ComponentPeer*>& peers = Desktop::getInstance().peers;
+
+    for (int i = peers.size(); --i >= 0;)
+    {
+        ComponentPeer* const peer = peers.getUnchecked(i);
+
         if (&(peer->getComponent()) == component)
             return peer;
+    }
 
     return nullptr;
 }
@@ -78,22 +85,21 @@ bool ComponentPeer::isKioskMode() const
 }
 
 //==============================================================================
-void ComponentPeer::handleMouseEvent (MouseInputSource::InputSourceType type, Point<float> pos, ModifierKeys newMods,
-                                      float newPressure, float newOrientation, int64 time, PenDetails pen, int touchIndex)
+void ComponentPeer::handleMouseEvent (int touchIndex, Point<float> pos, ModifierKeys newMods, float newPressure, int64 time)
 {
-    if (auto* mouse = Desktop::getInstance().mouseSources->getOrCreateMouseInputSource (type, touchIndex))
-        MouseInputSource (*mouse).handleEvent (*this, pos, time, newMods, newPressure, newOrientation, pen);
+    if (MouseInputSource* mouse = Desktop::getInstance().mouseSources->getOrCreateMouseInputSource (touchIndex))
+        MouseInputSource (*mouse).handleEvent (*this, pos, time, newMods, newPressure);
 }
 
-void ComponentPeer::handleMouseWheel (MouseInputSource::InputSourceType type, Point<float> pos, int64 time, const MouseWheelDetails& wheel, int touchIndex)
+void ComponentPeer::handleMouseWheel (int touchIndex, Point<float> pos, int64 time, const MouseWheelDetails& wheel)
 {
-    if (auto* mouse = Desktop::getInstance().mouseSources->getOrCreateMouseInputSource (type, touchIndex))
+    if (MouseInputSource* mouse = Desktop::getInstance().mouseSources->getOrCreateMouseInputSource (touchIndex))
         MouseInputSource (*mouse).handleWheel (*this, pos, time, wheel);
 }
 
-void ComponentPeer::handleMagnifyGesture (MouseInputSource::InputSourceType type, Point<float> pos, int64 time, float scaleFactor, int touchIndex)
+void ComponentPeer::handleMagnifyGesture (int touchIndex, Point<float> pos, int64 time, float scaleFactor)
 {
-    if (auto* mouse = Desktop::getInstance().mouseSources->getOrCreateMouseInputSource (type, touchIndex))
+    if (MouseInputSource* mouse = Desktop::getInstance().mouseSources->getOrCreateMouseInputSource (touchIndex))
         MouseInputSource (*mouse).handleMagnifyGesture (*this, pos, time, scaleFactor);
 }
 
@@ -107,7 +113,7 @@ void ComponentPeer::handlePaint (LowLevelGraphicsContext& contextToPaintTo)
     if (component.isTransformed())
         g.addTransform (component.getTransform());
 
-    auto peerBounds = getBounds();
+    const Rectangle<int> peerBounds (getBounds());
 
     if (peerBounds.getWidth() != component.getWidth() || peerBounds.getHeight() != component.getHeight())
         // Tweak the scaling so that the component's integer size exactly aligns with the peer's scaled size
@@ -156,13 +162,13 @@ void ComponentPeer::handlePaint (LowLevelGraphicsContext& contextToPaintTo)
 
 Component* ComponentPeer::getTargetForKeyPress()
 {
-    auto* c = Component::getCurrentlyFocusedComponent();
+    Component* c = Component::getCurrentlyFocusedComponent();
 
     if (c == nullptr)
         c = &component;
 
     if (c->isCurrentlyBlockedByAnotherModalComponent())
-        if (auto* currentModalComp = Component::getCurrentlyModalComponent())
+        if (Component* const currentModalComp = Component::getCurrentlyModalComponent())
             c = currentModalComp;
 
     return c;
@@ -182,11 +188,11 @@ bool ComponentPeer::handleKeyPress (const KeyPress& keyInfo)
 {
     bool keyWasUsed = false;
 
-    for (auto* target = getTargetForKeyPress(); target != nullptr; target = target->getParentComponent())
+    for (Component* target = getTargetForKeyPress(); target != nullptr; target = target->getParentComponent())
     {
         const WeakReference<Component> deletionChecker (target);
 
-        if (auto* keyListeners = target->keyListeners.get())
+        if (const Array<KeyListener*>* const keyListeners = target->keyListeners)
         {
             for (int i = keyListeners->size(); --i >= 0;)
             {
@@ -204,7 +210,7 @@ bool ComponentPeer::handleKeyPress (const KeyPress& keyInfo)
         if (keyWasUsed || deletionChecker == nullptr)
             break;
 
-        if (auto* currentlyFocused = Component::getCurrentlyFocusedComponent())
+        if (Component* const currentlyFocused = Component::getCurrentlyFocusedComponent())
         {
             const bool isTab      = (keyInfo == KeyPress::tabKey);
             const bool isShiftTab = (keyInfo == KeyPress (KeyPress::tabKey, ModifierKeys::shiftModifier, 0));
@@ -228,7 +234,7 @@ bool ComponentPeer::handleKeyUpOrDown (const bool isKeyDown)
     ModifierKeys::updateCurrentModifiers();
     bool keyWasUsed = false;
 
-    for (auto* target = getTargetForKeyPress(); target != nullptr; target = target->getParentComponent())
+    for (Component* target = getTargetForKeyPress(); target != nullptr; target = target->getParentComponent())
     {
         const WeakReference<Component> deletionChecker (target);
 
@@ -237,7 +243,7 @@ bool ComponentPeer::handleKeyUpOrDown (const bool isKeyDown)
         if (keyWasUsed || deletionChecker == nullptr)
             break;
 
-        if (auto* keyListeners = target->keyListeners.get())
+        if (const Array<KeyListener*>* const keyListeners = target->keyListeners)
         {
             for (int i = keyListeners->size(); --i >= 0;)
             {
@@ -258,7 +264,7 @@ void ComponentPeer::handleModifierKeysChange()
 {
     ModifierKeys::updateCurrentModifiers();
 
-    auto* target = Desktop::getInstance().getMainMouseSource().getComponentUnderMouse();
+    Component* target = Desktop::getInstance().getMainMouseSource().getComponentUnderMouse();
 
     if (target == nullptr)
         target = Component::getCurrentlyFocusedComponent();
@@ -266,15 +272,16 @@ void ComponentPeer::handleModifierKeysChange()
     if (target == nullptr)
         target = &component;
 
-    target->internalModifierKeysChanged();
+    if (target != nullptr)
+        target->internalModifierKeysChanged();
 }
 
 TextInputTarget* ComponentPeer::findCurrentTextInputTarget()
 {
-    auto* c = Component::getCurrentlyFocusedComponent();
+    Component* const c = Component::getCurrentlyFocusedComponent();
 
     if (c == &component || component.isParentOf (c))
-        if (auto* ti = dynamic_cast<TextInputTarget*> (c))
+        if (TextInputTarget* const ti = dynamic_cast<TextInputTarget*> (c))
             if (ti->isTextInputActive())
                 return ti;
 
@@ -305,8 +312,8 @@ void ComponentPeer::handleMovedOrResized()
     {
         const WeakReference<Component> deletionChecker (&component);
 
-        auto newBounds = Component::ComponentHelpers::rawPeerPositionToLocal (component, getBounds());
-        auto oldBounds = component.getBounds();
+        Rectangle<int> newBounds (Component::ComponentHelpers::rawPeerPositionToLocal (component, getBounds()));
+        Rectangle<int> oldBounds (component.getBounds());
 
         const bool wasMoved   = (oldBounds.getPosition() != newBounds.getPosition());
         const bool wasResized = (oldBounds.getWidth() != newBounds.getWidth() || oldBounds.getHeight() != newBounds.getHeight());
@@ -444,6 +451,31 @@ namespace DragHelpers
 
         return nullptr;
     }
+
+    // We'll use an async message to deliver the drop, because if the target decides
+    // to run a modal loop, it can gum-up the operating system..
+    class AsyncDropMessage  : public CallbackMessage
+    {
+    public:
+        AsyncDropMessage (Component* c, const ComponentPeer::DragInfo& d)  : target (c), info (d) {}
+
+        void messageCallback() override
+        {
+            if (Component* const c = target.get())
+            {
+                if (isFileDrag (info))
+                    dynamic_cast<FileDragAndDropTarget*> (c)->filesDropped (info.files, info.position.x, info.position.y);
+                else
+                    dynamic_cast<TextDragAndDropTarget*> (c)->textDropped (info.text, info.position.x, info.position.y);
+            }
+        }
+
+    private:
+        WeakReference<Component> target;
+        const ComponentPeer::DragInfo info;
+
+        JUCE_DECLARE_NON_COPYABLE (AsyncDropMessage)
+    };
 }
 
 bool ComponentPeer::handleDragMove (const ComponentPeer::DragInfo& info)
@@ -475,7 +507,7 @@ bool ComponentPeer::handleDragMove (const ComponentPeer::DragInfo& info)
             if (DragHelpers::isSuitableTarget (info, newTarget))
             {
                 dragAndDropTargetComponent = newTarget;
-                auto pos = newTarget->getLocalPoint (&component, info.position);
+                const Point<int> pos (newTarget->getLocalPoint (&component, info.position));
 
                 if (DragHelpers::isFileDrag (info))
                     dynamic_cast<FileDragAndDropTarget*> (newTarget)->fileDragEnter (info.files, pos.x, pos.y);
@@ -492,7 +524,7 @@ bool ComponentPeer::handleDragMove (const ComponentPeer::DragInfo& info)
     if (! DragHelpers::isSuitableTarget (info, newTarget))
         return false;
 
-    auto pos = newTarget->getLocalPoint (&component, info.position);
+    const Point<int> pos (newTarget->getLocalPoint (&component, info.position));
 
     if (DragHelpers::isFileDrag (info))
         dynamic_cast<FileDragAndDropTarget*> (newTarget)->fileDragMove (info.files, pos.x, pos.y);
@@ -517,7 +549,7 @@ bool ComponentPeer::handleDragDrop (const ComponentPeer::DragInfo& info)
 {
     handleDragMove (info);
 
-    if (WeakReference<Component> targetComp = dragAndDropTargetComponent)
+    if (Component* const targetComp = dragAndDropTargetComponent)
     {
         dragAndDropTargetComponent = nullptr;
         lastDragAndDropCompUnderMouse = nullptr;
@@ -532,22 +564,10 @@ bool ComponentPeer::handleDragDrop (const ComponentPeer::DragInfo& info)
                     return true;
             }
 
-            ComponentPeer::DragInfo infoCopy (info);
-            infoCopy.position = targetComp->getLocalPoint (&component, info.position);
+            ComponentPeer::DragInfo info2 (info);
+            info2.position = targetComp->getLocalPoint (&component, info.position);
 
-            // We'll use an async message to deliver the drop, because if the target decides
-            // to run a modal loop, it can gum-up the operating system..
-            MessageManager::callAsync ([=]()
-            {
-                if (auto* c = targetComp.get())
-                {
-                    if (DragHelpers::isFileDrag (info))
-                        dynamic_cast<FileDragAndDropTarget*> (c)->filesDropped (infoCopy.files, infoCopy.position.x, infoCopy.position.y);
-                    else
-                        dynamic_cast<TextDragAndDropTarget*> (c)->textDropped (infoCopy.text, infoCopy.position.x, infoCopy.position.y);
-                }
-            });
-
+            (new DragHelpers::AsyncDropMessage (targetComp, info2))->post();
             return true;
         }
     }

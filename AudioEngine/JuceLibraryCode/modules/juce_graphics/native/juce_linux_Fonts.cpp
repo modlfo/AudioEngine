@@ -2,39 +2,25 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2015 - ROLI Ltd.
 
-   JUCE is an open source library subject to commercial or open-source
-   licensing.
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   Details of these licenses can be found at: www.gnu.org/licenses
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
+   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-   Or: You may also use this code under the terms of the GPL v3 (see
-   www.gnu.org/licenses).
+   ------------------------------------------------------------------------------
 
-   JUCE IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL WARRANTIES, WHETHER
-   EXPRESSED OR IMPLIED, INCLUDING MERCHANTABILITY AND FITNESS FOR PURPOSE, ARE
-   DISCLAIMED.
+   To release a closed-source product which uses JUCE, commercial licenses are
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
-
-static XmlElement* findFontsConfFile()
-{
-    static const char* pathsToSearch[] = { "/etc/fonts/fonts.conf",
-                                           "/usr/share/fonts/fonts.conf" };
-
-    for (auto* path : pathsToSearch)
-        if (auto* xml = XmlDocument::parse (File (path)))
-            return xml;
-
-    return nullptr;
-}
 
 StringArray FTTypefaceList::getDefaultFontDirectories()
 {
@@ -43,19 +29,21 @@ StringArray FTTypefaceList::getDefaultFontDirectories()
     fontDirs.addTokens (String (CharPointer_UTF8 (getenv ("JUCE_FONT_PATH"))), ";,", "");
     fontDirs.removeEmptyStrings (true);
 
-    if (fontDirs.isEmpty())
+    if (fontDirs.size() == 0)
     {
-        if (ScopedPointer<XmlElement> fontsInfo = findFontsConfFile())
+        const ScopedPointer<XmlElement> fontsInfo (XmlDocument::parse (File ("/etc/fonts/fonts.conf")));
+
+        if (fontsInfo != nullptr)
         {
             forEachXmlChildElementWithTagName (*fontsInfo, e, "dir")
             {
-                auto fontPath = e->getAllSubText().trim();
+                String fontPath (e->getAllSubText().trim());
 
                 if (fontPath.isNotEmpty())
                 {
                     if (e->getStringAttribute ("prefix") == "xdg")
                     {
-                        auto xdgDataHome = SystemStats::getEnvironmentVariable ("XDG_DATA_HOME", {});
+                        String xdgDataHome (SystemStats::getEnvironmentVariable ("XDG_DATA_HOME", String()));
 
                         if (xdgDataHome.trimStart().isEmpty())
                             xdgDataHome = "~/.local/share";
@@ -69,7 +57,7 @@ StringArray FTTypefaceList::getDefaultFontDirectories()
         }
     }
 
-    if (fontDirs.isEmpty())
+    if (fontDirs.size() == 0)
         fontDirs.add ("/usr/X11R6/lib/X11/fonts");
 
     fontDirs.removeDuplicates (false);
@@ -132,19 +120,19 @@ private:
     {
         const StringArray choices (choicesArray);
 
-        for (auto& choice : choices)
-            if (names.contains (choice, true))
-                return choice;
+        for (int j = 0; j < choices.size(); ++j)
+            if (names.contains (choices[j], true))
+                return choices[j];
 
-        for (auto& choice : choices)
-            for (auto& name : names)
-                if (name.startsWithIgnoreCase (choice))
-                    return name;
+        for (int j = 0; j < choices.size(); ++j)
+            for (int i = 0; i < names.size(); ++i)
+                if (names[i].startsWithIgnoreCase (choices[j]))
+                    return names[i];
 
-        for (auto& choice : choices)
-            for (auto& name : names)
-                if (name.containsIgnoreCase (choice))
-                    return name;
+        for (int j = 0; j < choices.size(); ++j)
+            for (int i = 0; i < names.size(); ++i)
+                if (names[i].containsIgnoreCase (choices[j]))
+                    return names[i];
 
         return names[0];
     }

@@ -1122,7 +1122,7 @@ local void set_data_type (deflate_state *s)
  */
 local unsigned bi_reverse (unsigned code_, int len)
 {
-    unsigned res = 0;
+    register unsigned res = 0;
     do {
         res |= code_ & 1;
         code_ >>= 1, res <<= 1;

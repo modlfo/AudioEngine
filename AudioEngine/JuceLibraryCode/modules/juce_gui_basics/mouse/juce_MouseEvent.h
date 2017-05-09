@@ -2,29 +2,29 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2015 - ROLI Ltd.
 
-   JUCE is an open source library subject to commercial or open-source
-   licensing.
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   Details of these licenses can be found at: www.gnu.org/licenses
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
+   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-   Or: You may also use this code under the terms of the GPL v3 (see
-   www.gnu.org/licenses).
+   ------------------------------------------------------------------------------
 
-   JUCE IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL WARRANTIES, WHETHER
-   EXPRESSED OR IMPLIED, INCLUDING MERCHANTABILITY AND FITNESS FOR PURPOSE, ARE
-   DISCLAIMED.
+   To release a closed-source product which uses JUCE, commercial licenses are
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#pragma once
+#ifndef JUCE_MOUSEEVENT_H_INCLUDED
+#define JUCE_MOUSEEVENT_H_INCLUDED
+
 
 //==============================================================================
 /**
@@ -47,10 +47,6 @@ public:
         @param pressure         the pressure of the touch or stylus, in the range 0 to 1. Devices that
                                 do not support force information may return 0.0, 1.0, or a negative value,
                                 depending on the platform
-        @param orientation      the orientation of the touch input for this event in radians. The default is 0
-        @param rotation         the rotation of the pen device for this event in radians. The default is 0
-        @param tiltX            the tilt of the pen device along the x-axis between -1.0 and 1.0. The default is 0
-        @param tiltY            the tilt of the pen device along the y-axis between -1.0 and 1.0. The default is 0
         @param eventComponent   the component that the mouse event applies to
         @param originator       the component that originally received the event
         @param eventTime        the time the event happened
@@ -67,8 +63,6 @@ public:
                 Point<float> position,
                 ModifierKeys modifiers,
                 float pressure,
-                float orientation, float rotation,
-                float tiltX, float tiltY,
                 Component* eventComponent,
                 Component* originator,
                 Time eventTime,
@@ -124,27 +118,7 @@ public:
         If the input device doesn't provide any pressure data, it may return a negative
         value here, or 0.0 or 1.0, depending on the platform.
     */
-    const float pressure;
-
-    /** The orientation of the touch input for this event in radians where 0 indicates a touch aligned with the x-axis
-        and pointing from left to right; increasing values indicate rotation in the clockwise direction. The default is 0.
-    */
-    const float orientation;
-
-    /** The rotation of the pen device for this event in radians. Indicates the clockwise
-        rotation, or twist, of the pen. The default is 0.
-    */
-    const float rotation;
-
-    /** The tilt of the pen device along the x-axis between -1.0 and 1.0. A positive value indicates
-        a tilt to the right. The default is 0.
-    */
-    const float tiltX;
-
-    /** The tilt of the pen device along the y-axis between -1.0 and 1.0. A positive value indicates
-        a tilt toward the user. The default is 0.
-    */
-    const float tiltY;
+    float pressure;
 
     /** The component that this event applies to.
 
@@ -265,15 +239,6 @@ public:
 
     /** Returns true if the pressure value for this event is meaningful. */
     bool isPressureValid() const noexcept;
-
-    /** Returns true if the orientation value for this event is meaningful. */
-    bool isOrientationValid() const noexcept;
-
-    /** Returns true if the rotation value for this event is meaningful. */
-    bool isRotationValid() const noexcept;
-
-    /** Returns true if the current tilt value (either x- or y-axis) is meaningful. */
-    bool isTiltValid (bool tiltX) const noexcept;
 
     //==============================================================================
     /** The position of the mouse when the event occurred.
@@ -411,29 +376,5 @@ struct MouseWheelDetails
     bool isInertial;
 };
 
-//==============================================================================
-/**
-    Contains status information about a pen event.
 
-    @see MouseListener, MouseEvent
-*/
-struct PenDetails
-{
-    /**
-        The rotation of the pen device in radians. Indicates the clockwise rotation, or twist,
-        of the pen. The default is 0.
-    */
-    float rotation;
-
-    /**
-        Indicates the angle of tilt of the pointer in a range of -1.0 to 1.0 along the x-axis where
-        a positive value indicates a tilt to the right. The default is 0.
-    */
-    float tiltX;
-
-    /**
-        Indicates the angle of tilt of the pointer in a range of -1.0 to 1.0 along the y-axis where
-        a positive value indicates a tilt toward the user. The default is 0.
-    */
-    float tiltY;
-};
+#endif   // JUCE_MOUSEEVENT_H_INCLUDED

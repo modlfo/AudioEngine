@@ -2,38 +2,47 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2016 - ROLI Ltd.
 
-   JUCE is an open source library subject to commercial or open-source
-   licensing.
+   Permission is granted to use this software under the terms of the ISC license
+   http://www.isc.org/downloads/software-support-policy/isc-license/
 
-   The code included in this file is provided under the terms of the ISC license
-   http://www.isc.org/downloads/software-support-policy/isc-license. Permission
-   To use, copy, modify, and/or distribute this software for any purpose with or
-   without fee is hereby granted provided that the above copyright notice and
-   this permission notice appear in all copies.
+   Permission to use, copy, modify, and/or distribute this software for any
+   purpose with or without fee is hereby granted, provided that the above
+   copyright notice and this permission notice appear in all copies.
 
-   JUCE IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL WARRANTIES, WHETHER
-   EXPRESSED OR IMPLIED, INCLUDING MERCHANTABILITY AND FITNESS FOR PURPOSE, ARE
-   DISCLAIMED.
+   THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH REGARD
+   TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+   FITNESS. IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT,
+   OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+   USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+   TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE
+   OF THIS SOFTWARE.
+
+   -----------------------------------------------------------------------------
+
+   To release a closed-source product which uses other parts of JUCE not
+   licensed under the ISC terms, commercial licenses are available: visit
+   www.juce.com for more information.
 
   ==============================================================================
 */
 
 struct RegistryKeyWrapper
 {
-    RegistryKeyWrapper (String name, bool createForWriting, DWORD wow64Flags)
+    RegistryKeyWrapper (String name, const bool createForWriting, const DWORD wow64Flags)
+        : key (0), wideCharValueName (nullptr)
     {
         if (HKEY rootKey = getRootKey (name))
         {
             name = name.substring (name.indexOfChar ('\\') + 1);
 
-            auto lastSlash = name.lastIndexOfChar ('\\');
+            const int lastSlash = name.lastIndexOfChar ('\\');
             valueName = name.substring (lastSlash + 1);
             wideCharValueName = valueName.toWideCharPointer();
 
             name = name.substring (0, lastSlash);
-            auto wideCharName = name.toWideCharPointer();
+            const wchar_t* const wideCharName = name.toWideCharPointer();
             DWORD result;
 
             if (createForWriting)
@@ -87,8 +96,8 @@ struct RegistryKeyWrapper
                 result.setSize (bufferSize, false);
                 DWORD type = REG_NONE;
 
-                auto err = RegQueryValueEx (key.key, key.wideCharValueName, 0, &type,
-                                            (LPBYTE) result.getData(), &bufferSize);
+                const LONG err = RegQueryValueEx (key.key, key.wideCharValueName, 0, &type,
+                                                  (LPBYTE) result.getData(), &bufferSize);
 
                 if (err == ERROR_SUCCESS)
                 {
@@ -107,7 +116,6 @@ struct RegistryKeyWrapper
     static String getValue (const String& regValuePath, const String& defaultValue, DWORD wow64Flags)
     {
         MemoryBlock buffer;
-
         switch (getBinaryValue (regValuePath, buffer, wow64Flags))
         {
             case REG_SZ:    return static_cast<const WCHAR*> (buffer.getData());
@@ -134,14 +142,14 @@ struct RegistryKeyWrapper
         unsigned long bufferSize = sizeof (buffer);
         DWORD type = 0;
 
-        auto result = RegQueryValueEx (key.key, key.wideCharValueName,
-                                       0, &type, buffer, &bufferSize);
+        const LONG result = RegQueryValueEx (key.key, key.wideCharValueName,
+                                             0, &type, buffer, &bufferSize);
 
         return result == ERROR_SUCCESS || result == ERROR_MORE_DATA;
     }
 
-    HKEY key = 0;
-    const wchar_t* wideCharValueName = nullptr;
+    HKEY key;
+    const wchar_t* wideCharValueName;
     String valueName;
 
     JUCE_DECLARE_NON_COPYABLE (RegistryKeyWrapper)
@@ -188,36 +196,20 @@ bool JUCE_CALLTYPE WindowsRegistry::keyExists (const String& regValuePath, WoW64
     return RegistryKeyWrapper::keyExists (regValuePath, (DWORD) mode);
 }
 
-bool JUCE_CALLTYPE WindowsRegistry::deleteValue (const String& regValuePath, WoW64Mode mode)
+void JUCE_CALLTYPE WindowsRegistry::deleteValue (const String& regValuePath, WoW64Mode mode)
 {
     const RegistryKeyWrapper key (regValuePath, true, (DWORD) mode);
 
-    return key.key != 0 && RegDeleteValue (key.key, key.wideCharValueName) == ERROR_SUCCESS;
+    if (key.key != 0)
+        RegDeleteValue (key.key, key.wideCharValueName);
 }
 
-static bool deleteKeyNonRecursive (const String& regKeyPath, WindowsRegistry::WoW64Mode mode)
+void JUCE_CALLTYPE WindowsRegistry::deleteKey (const String& regKeyPath, WoW64Mode mode)
 {
     const RegistryKeyWrapper key (regKeyPath, true, (DWORD) mode);
 
-    return key.key != 0 && RegDeleteKey (key.key, key.wideCharValueName) == ERROR_SUCCESS;
-}
-
-bool JUCE_CALLTYPE WindowsRegistry::deleteKey (const String& regKeyPath, WoW64Mode mode)
-{
-    if (deleteKeyNonRecursive (regKeyPath, mode))
-        return true;
-
-    for (const RegistryKeyWrapper key (regKeyPath + "\\", false, (DWORD) mode);;)
-    {
-        wchar_t subKey[MAX_PATH + 1] = {};
-        DWORD subKeySize = MAX_PATH;
-
-        if (RegEnumKeyEx (key.key, 0, subKey, &subKeySize, nullptr, nullptr, nullptr, nullptr) != ERROR_SUCCESS
-             || ! deleteKey (regKeyPath + "\\" + String (subKey), mode))
-            break;
-    }
-
-    return deleteKeyNonRecursive (regKeyPath, mode);
+    if (key.key != 0)
+        RegDeleteKey (key.key, key.wideCharValueName);
 }
 
 bool JUCE_CALLTYPE WindowsRegistry::registerFileAssociation (const String& fileExtension,
@@ -228,9 +220,9 @@ bool JUCE_CALLTYPE WindowsRegistry::registerFileAssociation (const String& fileE
                                                              const bool registerForCurrentUserOnly,
                                                              WoW64Mode mode)
 {
-    auto root = registerForCurrentUserOnly ? "HKEY_CURRENT_USER\\Software\\Classes\\"
-                                           : "HKEY_CLASSES_ROOT\\";
-    auto key = root + symbolicDescription;
+    const char* const root = registerForCurrentUserOnly ? "HKEY_CURRENT_USER\\Software\\Classes\\"
+                                                        : "HKEY_CLASSES_ROOT\\";
+    const String key (root + symbolicDescription);
 
     return setValue (root + fileExtension + "\\", symbolicDescription, mode)
         && setValue (key + "\\", fullDescription, mode)

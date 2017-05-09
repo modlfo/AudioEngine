@@ -2,26 +2,37 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2016 - ROLI Ltd.
 
-   JUCE is an open source library subject to commercial or open-source
-   licensing.
+   Permission is granted to use this software under the terms of the ISC license
+   http://www.isc.org/downloads/software-support-policy/isc-license/
 
-   The code included in this file is provided under the terms of the ISC license
-   http://www.isc.org/downloads/software-support-policy/isc-license. Permission
-   To use, copy, modify, and/or distribute this software for any purpose with or
-   without fee is hereby granted provided that the above copyright notice and
-   this permission notice appear in all copies.
+   Permission to use, copy, modify, and/or distribute this software for any
+   purpose with or without fee is hereby granted, provided that the above
+   copyright notice and this permission notice appear in all copies.
 
-   JUCE IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL WARRANTIES, WHETHER
-   EXPRESSED OR IMPLIED, INCLUDING MERCHANTABILITY AND FITNESS FOR PURPOSE, ARE
-   DISCLAIMED.
+   THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH REGARD
+   TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+   FITNESS. IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT,
+   OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+   USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+   TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE
+   OF THIS SOFTWARE.
+
+   -----------------------------------------------------------------------------
+
+   To release a closed-source product which uses other parts of JUCE not
+   licensed under the ISC terms, commercial licenses are available: visit
+   www.juce.com for more information.
 
   ==============================================================================
 */
 
 MessageManager::MessageManager() noexcept
-  : messageThreadId (Thread::getCurrentThreadId())
+  : quitMessagePosted (false),
+    quitMessageReceived (false),
+    messageThreadId (Thread::getCurrentThreadId()),
+    threadWithLock (0)
 {
     if (JUCEApplicationBase::isStandaloneApp())
         Thread::setCurrentThreadName ("Juce Message Thread");
@@ -63,7 +74,7 @@ void MessageManager::deleteInstance()
 //==============================================================================
 bool MessageManager::MessageBase::post()
 {
-    auto* mm = MessageManager::instance;
+    MessageManager* const mm = MessageManager::instance;
 
     if (mm == nullptr || mm->quitMessagePosted || ! postMessageToSystemQueue (this))
     {
@@ -107,7 +118,7 @@ public:
 
     void messageCallback() override
     {
-        if (auto* mm = MessageManager::instance)
+        if (MessageManager* const mm = MessageManager::instance)
             mm->quitMessageReceived = true;
     }
 
@@ -138,11 +149,30 @@ void MessageManager::stopDispatchLoop()
 #endif
 
 //==============================================================================
+#if JUCE_COMPILER_SUPPORTS_LAMBDAS
+struct AsyncFunction  : private MessageManager::MessageBase
+{
+    AsyncFunction (std::function<void(void)> f)  : fn (f)  { post(); }
+
+private:
+    std::function<void(void)> fn;
+    void messageCallback() override    { fn(); }
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AsyncFunction)
+};
+
+void MessageManager::callAsync (std::function<void(void)> f)
+{
+    new AsyncFunction (f);
+}
+#endif
+
+//==============================================================================
 class AsyncFunctionCallback   : public MessageManager::MessageBase
 {
 public:
     AsyncFunctionCallback (MessageCallbackFunction* const f, void* const param)
-        : func (f), parameter (param)
+        : result (nullptr), func (f), parameter (param)
     {}
 
     void messageCallback() override
@@ -152,7 +182,7 @@ public:
     }
 
     WaitableEvent finished;
-    void* volatile result = nullptr;
+    void* volatile result;
 
 private:
     MessageCallbackFunction* const func;
@@ -257,26 +287,18 @@ public:
 
 //==============================================================================
 MessageManagerLock::MessageManagerLock (Thread* const threadToCheck)
-    : blockingMessage(), checker (threadToCheck, nullptr),
-      locked (attemptLock (threadToCheck != nullptr ? &checker : nullptr))
+    : blockingMessage(), locked (attemptLock (threadToCheck, nullptr))
 {
 }
 
 MessageManagerLock::MessageManagerLock (ThreadPoolJob* const jobToCheckForExitSignal)
-    : blockingMessage(), checker (nullptr, jobToCheckForExitSignal),
-      locked (attemptLock (jobToCheckForExitSignal != nullptr ? &checker : nullptr))
+    : blockingMessage(), locked (attemptLock (nullptr, jobToCheckForExitSignal))
 {
 }
 
-MessageManagerLock::MessageManagerLock (BailOutChecker& bailOutChecker)
-    : blockingMessage(), checker (nullptr, nullptr),
-      locked (attemptLock (&bailOutChecker))
+bool MessageManagerLock::attemptLock (Thread* const threadToCheck, ThreadPoolJob* const job)
 {
-}
-
-bool MessageManagerLock::attemptLock (BailOutChecker* bailOutChecker)
-{
-    auto* mm = MessageManager::instance;
+    MessageManager* const mm = MessageManager::instance;
 
     if (mm == nullptr)
         return false;
@@ -284,7 +306,7 @@ bool MessageManagerLock::attemptLock (BailOutChecker* bailOutChecker)
     if (mm->currentThreadHasLockedMessageManager())
         return true;
 
-    if (bailOutChecker == nullptr)
+    if (threadToCheck == nullptr && job == nullptr)
     {
         mm->lockingLock.enter();
     }
@@ -292,7 +314,8 @@ bool MessageManagerLock::attemptLock (BailOutChecker* bailOutChecker)
     {
         while (! mm->lockingLock.tryEnter())
         {
-            if (bailOutChecker->shouldAbortAcquiringLock())
+            if ((threadToCheck != nullptr && threadToCheck->threadShouldExit())
+                  || (job != nullptr && job->shouldExit()))
                 return false;
 
             Thread::yield();
@@ -309,7 +332,8 @@ bool MessageManagerLock::attemptLock (BailOutChecker* bailOutChecker)
 
     while (! blockingMessage->lockedEvent.wait (20))
     {
-        if (bailOutChecker != nullptr && bailOutChecker->shouldAbortAcquiringLock())
+        if ((threadToCheck != nullptr && threadToCheck->threadShouldExit())
+              || (job != nullptr && job->shouldExit()))
         {
             blockingMessage->releaseEvent.signal();
             blockingMessage = nullptr;
@@ -328,7 +352,7 @@ MessageManagerLock::~MessageManagerLock() noexcept
 {
     if (blockingMessage != nullptr)
     {
-        auto* mm = MessageManager::instance;
+        MessageManager* const mm = MessageManager::instance;
 
         jassert (mm == nullptr || mm->currentThreadHasLockedMessageManager());
 
@@ -341,19 +365,6 @@ MessageManagerLock::~MessageManagerLock() noexcept
             mm->lockingLock.exit();
         }
     }
-}
-
-//==============================================================================
-MessageManagerLock::ThreadChecker::ThreadChecker (Thread* const threadToUse,
-                                                  ThreadPoolJob* const threadJobToUse)
-    : threadToCheck (threadToUse), job (threadJobToUse)
-{
-}
-
-bool MessageManagerLock::ThreadChecker::shouldAbortAcquiringLock()
-{
-    return (threadToCheck != nullptr && threadToCheck->threadShouldExit())
-        || (job           != nullptr && job->shouldExit());
 }
 
 //==============================================================================

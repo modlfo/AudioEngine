@@ -2,24 +2,33 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2016 - ROLI Ltd.
 
-   JUCE is an open source library subject to commercial or open-source
-   licensing.
+   Permission is granted to use this software under the terms of the ISC license
+   http://www.isc.org/downloads/software-support-policy/isc-license/
 
-   The code included in this file is provided under the terms of the ISC license
-   http://www.isc.org/downloads/software-support-policy/isc-license. Permission
-   To use, copy, modify, and/or distribute this software for any purpose with or
-   without fee is hereby granted provided that the above copyright notice and
-   this permission notice appear in all copies.
+   Permission to use, copy, modify, and/or distribute this software for any
+   purpose with or without fee is hereby granted, provided that the above
+   copyright notice and this permission notice appear in all copies.
 
-   JUCE IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL WARRANTIES, WHETHER
-   EXPRESSED OR IMPLIED, INCLUDING MERCHANTABILITY AND FITNESS FOR PURPOSE, ARE
-   DISCLAIMED.
+   THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH REGARD
+   TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+   FITNESS. IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT,
+   OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+   USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+   TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE
+   OF THIS SOFTWARE.
+
+   -----------------------------------------------------------------------------
+
+   To release a closed-source product which uses other parts of JUCE not
+   licensed under the ISC terms, commercial licenses are available: visit
+   www.juce.com for more information.
 
   ==============================================================================
 */
 
+//==============================================================================
 struct FallbackDownloadTask  : public URL::DownloadTask,
                                public Thread
 {
@@ -29,18 +38,15 @@ struct FallbackDownloadTask  : public URL::DownloadTask,
                           URL::DownloadTask::Listener* listenerToUse)
         : Thread ("DownloadTask thread"),
           fileStream (outputStreamToUse),
-          stream (streamToUse),
           bufferSize (bufferSizeToUse),
           buffer (bufferSize),
+          stream (streamToUse),
           listener (listenerToUse)
     {
-        jassert (fileStream != nullptr);
-        jassert (stream != nullptr);
-
         contentLength = stream->getTotalLength();
         httpCode      = stream->getStatusCode();
 
-        startThread();
+        startThread ();
     }
 
     ~FallbackDownloadTask()
@@ -53,7 +59,7 @@ struct FallbackDownloadTask  : public URL::DownloadTask,
     //==============================================================================
     void run() override
     {
-        while (! (stream->isExhausted() || stream->isError() || threadShouldExit()))
+        while (! stream->isExhausted() && ! stream->isError() && ! threadShouldExit())
         {
             if (listener != nullptr)
                 listener->progress (this, downloaded, contentLength);
@@ -77,7 +83,7 @@ struct FallbackDownloadTask  : public URL::DownloadTask,
 
         fileStream->flush();
 
-        if (threadShouldExit() || stream->isError())
+        if (threadShouldExit() || (stream != nullptr && stream->isError()))
             error = true;
 
         if (contentLength > 0 && downloaded < contentLength)
@@ -90,13 +96,11 @@ struct FallbackDownloadTask  : public URL::DownloadTask,
     }
 
     //==============================================================================
-    const ScopedPointer<FileOutputStream> fileStream;
-    const ScopedPointer<WebInputStream> stream;
-    const size_t bufferSize;
+    ScopedPointer<FileOutputStream> fileStream;
+    size_t bufferSize;
     HeapBlock<char> buffer;
-    URL::DownloadTask::Listener* const listener;
-
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FallbackDownloadTask)
+    ScopedPointer<WebInputStream> stream;
+    URL::DownloadTask::Listener* listener;
 };
 
 void URL::DownloadTask::Listener::progress (DownloadTask*, int64, int64) {}
@@ -518,7 +522,7 @@ String URL::readEntireTextStream (const bool usePostCommand) const
     if (in != nullptr)
         return in->readEntireStreamAsString();
 
-    return {};
+    return String();
 }
 
 XmlElement* URL::readEntireXmlStream (const bool usePostCommand) const

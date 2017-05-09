@@ -2,20 +2,28 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2016 - ROLI Ltd.
 
-   JUCE is an open source library subject to commercial or open-source
-   licensing.
+   Permission is granted to use this software under the terms of the ISC license
+   http://www.isc.org/downloads/software-support-policy/isc-license/
 
-   The code included in this file is provided under the terms of the ISC license
-   http://www.isc.org/downloads/software-support-policy/isc-license. Permission
-   To use, copy, modify, and/or distribute this software for any purpose with or
-   without fee is hereby granted provided that the above copyright notice and
-   this permission notice appear in all copies.
+   Permission to use, copy, modify, and/or distribute this software for any
+   purpose with or without fee is hereby granted, provided that the above
+   copyright notice and this permission notice appear in all copies.
 
-   JUCE IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL WARRANTIES, WHETHER
-   EXPRESSED OR IMPLIED, INCLUDING MERCHANTABILITY AND FITNESS FOR PURPOSE, ARE
-   DISCLAIMED.
+   THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH REGARD
+   TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+   FITNESS. IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT,
+   OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+   USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+   TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE
+   OF THIS SOFTWARE.
+
+   -----------------------------------------------------------------------------
+
+   To release a closed-source product which uses other parts of JUCE not
+   licensed under the ISC terms, commercial licenses are available: visit
+   www.juce.com for more information.
 
   ==============================================================================
 */
@@ -392,26 +400,26 @@ private:
 
 
 //==============================================================================
-struct GetAdaptersAddressesHelper
+struct GetAdaptersInfoHelper
 {
-    bool callGetAdaptersAddresses()
+    bool callGetAdaptersInfo()
     {
         DynamicLibrary dll ("iphlpapi.dll");
-        JUCE_LOAD_WINAPI_FUNCTION (dll, GetAdaptersAddresses, getAdaptersAddresses, DWORD, (ULONG, ULONG, PVOID, PIP_ADAPTER_ADDRESSES, PULONG))
+        JUCE_LOAD_WINAPI_FUNCTION (dll, GetAdaptersInfo, getAdaptersInfo, DWORD, (PIP_ADAPTER_INFO, PULONG))
 
-        if (getAdaptersAddresses == nullptr)
+        if (getAdaptersInfo == nullptr)
             return false;
 
-        adaptersAddresses.malloc (1);
-        ULONG len = sizeof (IP_ADAPTER_ADDRESSES);
+        adapterInfo.malloc (1);
+        ULONG len = sizeof (IP_ADAPTER_INFO);
 
-        if (getAdaptersAddresses (AF_UNSPEC, GAA_FLAG_INCLUDE_PREFIX, NULL, adaptersAddresses, &len) == ERROR_BUFFER_OVERFLOW)
-            adaptersAddresses.malloc (len, 1);
+        if (getAdaptersInfo (adapterInfo, &len) == ERROR_BUFFER_OVERFLOW)
+            adapterInfo.malloc (len, 1);
 
-        return getAdaptersAddresses (AF_UNSPEC, GAA_FLAG_INCLUDE_PREFIX, NULL, adaptersAddresses, &len) == NO_ERROR;
+        return getAdaptersInfo (adapterInfo, &len) == NO_ERROR;
     }
 
-    HeapBlock<IP_ADAPTER_ADDRESSES> adaptersAddresses;
+    HeapBlock<IP_ADAPTER_INFO> adapterInfo;
 };
 
 namespace MACAddressHelpers
@@ -422,17 +430,15 @@ namespace MACAddressHelpers
             result.addIfNotAlreadyThere (ma);
     }
 
-    static void getViaGetAdaptersAddresses (Array<MACAddress>& result)
+    static void getViaGetAdaptersInfo (Array<MACAddress>& result)
     {
-        GetAdaptersAddressesHelper addressesHelper;
+        GetAdaptersInfoHelper gah;
 
-        if (addressesHelper.callGetAdaptersAddresses())
+        if (gah.callGetAdaptersInfo())
         {
-            for (PIP_ADAPTER_ADDRESSES adapter = addressesHelper.adaptersAddresses; adapter != nullptr; adapter = adapter->Next)
-            {
-                if (adapter->PhysicalAddressLength >= 6)
-                    addAddress (result, MACAddress (adapter->PhysicalAddress));
-            }
+            for (PIP_ADAPTER_INFO adapter = gah.adapterInfo; adapter != nullptr; adapter = adapter->Next)
+                if (adapter->AddressLength >= 6)
+                    addAddress (result, MACAddress (adapter->Address));
         }
     }
 
@@ -487,108 +493,24 @@ namespace MACAddressHelpers
 
 void MACAddress::findAllAddresses (Array<MACAddress>& result)
 {
-    MACAddressHelpers::getViaGetAdaptersAddresses (result);
+    MACAddressHelpers::getViaGetAdaptersInfo (result);
     MACAddressHelpers::getViaNetBios (result);
 }
 
-void IPAddress::findAllAddresses (Array<IPAddress>& result, bool includeIPv6)
+void IPAddress::findAllAddresses (Array<IPAddress>& result)
 {
     result.addIfNotAlreadyThere (IPAddress::local());
 
-    if (includeIPv6)
-        result.addIfNotAlreadyThere (IPAddress::local (true));
+    GetAdaptersInfoHelper gah;
 
-    GetAdaptersAddressesHelper addressesHelper;
-    if (addressesHelper.callGetAdaptersAddresses())
+    if (gah.callGetAdaptersInfo())
     {
-        for (PIP_ADAPTER_ADDRESSES adapter = addressesHelper.adaptersAddresses; adapter != nullptr; adapter = adapter->Next)
+        for (PIP_ADAPTER_INFO adapter = gah.adapterInfo; adapter != nullptr; adapter = adapter->Next)
         {
-            PIP_ADAPTER_UNICAST_ADDRESS pUnicast = nullptr;
-            for (pUnicast = adapter->FirstUnicastAddress; pUnicast != nullptr; pUnicast = pUnicast->Next)
-            {
-                if (pUnicast->Address.lpSockaddr->sa_family == AF_INET)
-                {
-                    const sockaddr_in* sa_in = (sockaddr_in*)pUnicast->Address.lpSockaddr;
-                    IPAddress ip ((uint8*)&sa_in->sin_addr.s_addr, false);
-                    result.addIfNotAlreadyThere (ip);
-                }
-                else if (pUnicast->Address.lpSockaddr->sa_family == AF_INET6 && includeIPv6)
-                {
-                    const sockaddr_in6* sa_in6 = (sockaddr_in6*)pUnicast->Address.lpSockaddr;
+            IPAddress ip (adapter->IpAddressList.IpAddress.String);
 
-                    ByteUnion temp;
-                    uint16 arr[8];
-
-                    for (int i = 0; i < 8; ++i)
-                    {
-                        temp.split[0] = sa_in6->sin6_addr.u.Byte[i * 2 + 1];
-                        temp.split[1] = sa_in6->sin6_addr.u.Byte[i * 2];
-
-                        arr[i] = temp.combined;
-                    }
-
-                    IPAddress ip (arr);
-                    result.addIfNotAlreadyThere (ip);
-                }
-            }
-
-            PIP_ADAPTER_ANYCAST_ADDRESS   pAnycast = nullptr;
-            for (pAnycast = adapter->FirstAnycastAddress; pAnycast != nullptr; pAnycast = pAnycast->Next)
-            {
-                if (pAnycast->Address.lpSockaddr->sa_family == AF_INET)
-                {
-                    const sockaddr_in* sa_in = (sockaddr_in*)pAnycast->Address.lpSockaddr;
-                    IPAddress ip ((uint8*)&sa_in->sin_addr.s_addr, false);
-                    result.addIfNotAlreadyThere (ip);
-                }
-                else if (pAnycast->Address.lpSockaddr->sa_family == AF_INET6 && includeIPv6)
-                {
-                    const sockaddr_in6* sa_in6 = (sockaddr_in6*)pAnycast->Address.lpSockaddr;
-
-                    ByteUnion temp;
-                    uint16 arr[8];
-
-                    for (int i = 0; i < 8; ++i)
-                    {
-                        temp.split[0] = sa_in6->sin6_addr.u.Byte[i * 2 + 1];
-                        temp.split[1] = sa_in6->sin6_addr.u.Byte[i * 2];
-
-                        arr[i] = temp.combined;
-                    }
-
-                    IPAddress ip (arr);
-                    result.addIfNotAlreadyThere (ip);
-                }
-            }
-
-            PIP_ADAPTER_MULTICAST_ADDRESS pMulticast = nullptr;
-            for (pMulticast = adapter->FirstMulticastAddress; pMulticast != nullptr; pMulticast = pMulticast->Next)
-            {
-                if (pMulticast->Address.lpSockaddr->sa_family == AF_INET)
-                {
-                    const sockaddr_in* sa_in = (sockaddr_in*)pMulticast->Address.lpSockaddr;
-                    IPAddress ip ((uint8*)&sa_in->sin_addr.s_addr, false);
-                    result.addIfNotAlreadyThere (ip);
-                }
-                else if (pMulticast->Address.lpSockaddr->sa_family == AF_INET6 && includeIPv6)
-                {
-                    const sockaddr_in6* sa_in6 = (sockaddr_in6*)pMulticast->Address.lpSockaddr;
-
-                    ByteUnion temp;
-                    uint16 arr[8];
-
-                    for (int i = 0; i < 8; ++i)
-                    {
-                        temp.split[0] = sa_in6->sin6_addr.u.Byte[i * 2 + 1];
-                        temp.split[1] = sa_in6->sin6_addr.u.Byte[i * 2];
-
-                        arr[i] = temp.combined;
-                    }
-
-                    IPAddress ip (arr);
-                    result.addIfNotAlreadyThere (ip);
-                }
-            }
+            if (ip != IPAddress::any())
+                result.addIfNotAlreadyThere (ip);
         }
     }
 }

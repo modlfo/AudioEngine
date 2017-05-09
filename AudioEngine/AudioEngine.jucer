@@ -2,7 +2,7 @@
 
 <JUCERPROJECT id="P7cfuB" name="AudioEngine" projectType="consoleapp" version="1.0.0"
               bundleIdentifier="com.vult.AudioEngine" includeBinaryInAppConfig="1"
-              jucerVersion="5.0.1" displaySplashScreen="0" reportAppUsage="0"
+              jucerVersion="4.3.1" displaySplashScreen="0" reportAppUsage="0"
               splashScreenColour="Dark">
   <MAINGROUP id="YcKH0F" name="AudioEngine">
     <GROUP id="{1F83AB2F-6CA4-E0C0-2918-BC94C2B86A8C}" name="LuaScripts">

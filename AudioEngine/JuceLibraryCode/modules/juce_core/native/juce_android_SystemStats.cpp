@@ -2,20 +2,28 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2016 - ROLI Ltd.
 
-   JUCE is an open source library subject to commercial or open-source
-   licensing.
+   Permission is granted to use this software under the terms of the ISC license
+   http://www.isc.org/downloads/software-support-policy/isc-license/
 
-   The code included in this file is provided under the terms of the ISC license
-   http://www.isc.org/downloads/software-support-policy/isc-license. Permission
-   To use, copy, modify, and/or distribute this software for any purpose with or
-   without fee is hereby granted provided that the above copyright notice and
-   this permission notice appear in all copies.
+   Permission to use, copy, modify, and/or distribute this software for any
+   purpose with or without fee is hereby granted, provided that the above
+   copyright notice and this permission notice appear in all copies.
 
-   JUCE IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL WARRANTIES, WHETHER
-   EXPRESSED OR IMPLIED, INCLUDING MERCHANTABILITY AND FITNESS FOR PURPOSE, ARE
-   DISCLAIMED.
+   THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH REGARD
+   TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+   FITNESS. IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT,
+   OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+   USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+   TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE
+   OF THIS SOFTWARE.
+
+   -----------------------------------------------------------------------------
+
+   To release a closed-source product which uses other parts of JUCE not
+   licensed under the ISC terms, commercial licenses are available: visit
+   www.juce.com for more information.
 
   ==============================================================================
 */
@@ -92,90 +100,23 @@ jfieldID JNIClassBase::resolveStaticField (JNIEnv* env, const char* fieldName, c
 }
 
 //==============================================================================
-JavaVM* androidJNIJavaVM = nullptr;
+ThreadLocalValue<JNIEnv*> androidJNIEnv;
 
-class JniEnvThreadHolder
+JNIEnv* getEnv() noexcept
 {
-public:
-    static JniEnvThreadHolder& getInstance() noexcept
-    {
-        // You cann only use JNI functions AFTER JNI_OnLoad was called
-        jassert (androidJNIJavaVM != nullptr);
+    JNIEnv* env = androidJNIEnv.get();
+    jassert (env != nullptr);
 
-        try
-        {
-            if (instance == nullptr)
-                instance = new JniEnvThreadHolder;
-        }
-        catch (...)
-        {
-            jassertfalse;
-            std::terminate();
-        }
+    return env;
+}
 
-        return *instance;
-    }
-
-    static JNIEnv* getEnv()
-    {
-        JNIEnv* env = reinterpret_cast<JNIEnv*> (pthread_getspecific (getInstance().threadKey));
-
-        // You are trying to use a JUCE function on a thread that was not created by JUCE.
-        // You need to first call setEnv on this thread before using JUCE
-        jassert (env != nullptr);
-
-        return env;
-    }
-
-    static void setEnv (JNIEnv* env)
-    {
-        // env must not be a nullptr
-        jassert (env != nullptr);
-
-       #if JUCE_DEBUG
-        JNIEnv* oldenv = reinterpret_cast<JNIEnv*> (pthread_getspecific (getInstance().threadKey));
-
-        // This thread is already attached to the JavaVM and you trying to attach
-        // it to a different instance of the VM.
-        jassert (oldenv == nullptr || oldenv == env);
-       #endif
-
-        pthread_setspecific (getInstance().threadKey, env);
-    }
-
-private:
-    pthread_key_t threadKey;
-
-    static void threadDetach (void* p)
-    {
-        if (JNIEnv* env = reinterpret_cast<JNIEnv*> (p))
-        {
-            ignoreUnused (env);
-
-            androidJNIJavaVM->DetachCurrentThread();
-        }
-    }
-
-    JniEnvThreadHolder()
-    {
-        pthread_key_create (&threadKey, threadDetach);
-    }
-
-    static JniEnvThreadHolder* instance;
-};
-
-JniEnvThreadHolder* JniEnvThreadHolder::instance = nullptr;
-
-//==============================================================================
-JNIEnv* getEnv() noexcept            { return JniEnvThreadHolder::getEnv(); }
-void setEnv (JNIEnv* env) noexcept   { JniEnvThreadHolder::setEnv (env); }
-
-extern "C" jint JNI_OnLoad (JavaVM* vm, void*)
+void setEnv (JNIEnv* env) noexcept
 {
-    // Huh? JNI_OnLoad was called two times!
-    jassert (androidJNIJavaVM == nullptr);
+    androidJNIEnv.get() = env;
+}
 
-    androidJNIJavaVM = vm;
+extern "C" jint JNI_OnLoad (JavaVM*, void*)
+{
     return JNI_VERSION_1_2;
 }
 
@@ -186,8 +127,6 @@ AndroidSystem::AndroidSystem() : screenWidth (0), screenHeight (0), dpi (160)
 
 void AndroidSystem::initialise (JNIEnv* env, jobject act, jstring file, jstring dataDir)
 {
-    setEnv (env);
-
     screenWidth = screenHeight = 0;
     dpi = 160;
     JNIClassBase::initialiseAllClasses (env);
@@ -215,14 +154,14 @@ namespace AndroidStatsHelpers
     DECLARE_JNI_CLASS (SystemClass, "java/lang/System");
     #undef JNI_CLASS_MEMBERS
 
-    static inline String getSystemProperty (const String& name)
+    String getSystemProperty (const String& name)
     {
         return juceString (LocalRef<jstring> ((jstring) getEnv()->CallStaticObjectMethod (SystemClass,
                                                                                           SystemClass.getProperty,
                                                                                           javaString (name).get())));
     }
 
-    static inline String getLocaleValue (bool isRegion)
+    String getLocaleValue (bool isRegion)
     {
         return juceString (LocalRef<jstring> ((jstring) getEnv()->CallStaticObjectMethod (JuceAppActivity,
                                                                                           JuceAppActivity.getLocaleValue,
@@ -233,7 +172,7 @@ namespace AndroidStatsHelpers
     DECLARE_JNI_CLASS (BuildClass, "android/os/Build");
     #undef JNI_CLASS_MEMBERS
 
-    static inline String getAndroidOsBuildValue (const char* fieldName)
+    String getAndroidOsBuildValue (const char* fieldName)
     {
         return juceString (LocalRef<jstring> ((jstring) getEnv()->GetStaticObjectField (
                             BuildClass, getEnv()->GetStaticFieldID (BuildClass, fieldName, "Ljava/lang/String;"))));
@@ -271,25 +210,9 @@ String SystemStats::getCpuVendor()
     return AndroidStatsHelpers::getSystemProperty ("os.arch");
 }
 
-String SystemStats::getCpuModel()
-{
-    return readPosixConfigFileValue ("/proc/cpuinfo", "Hardware");
-}
-
 int SystemStats::getCpuSpeedInMegaherz()
 {
-    int maxFreqKHz = 0;
-
-    for (int i = 0; i < getNumCpus(); ++i)
-    {
-        int freqKHz = File ("/sys/devices/system/cpu/cpu" + String(i) + "/cpufreq/cpuinfo_max_freq")
-                        .loadFileAsString()
-                        .getIntValue();
-
-        maxFreqKHz = jmax (freqKHz, maxFreqKHz);
-    }
-
-    return maxFreqKHz / 1000;
+    return 0; // TODO
 }
 
 int SystemStats::getMemorySizeInMegabytes()
@@ -298,7 +221,7 @@ int SystemStats::getMemorySizeInMegabytes()
     struct sysinfo sysi;
 
     if (sysinfo (&sysi) == 0)
-        return (static_cast<int> (sysi.totalram * sysi.mem_unit) / (1024 * 1024));
+        return (sysi.totalram * sysi.mem_unit / (1024 * 1024));
    #endif
 
     return 0;
@@ -306,7 +229,7 @@ int SystemStats::getMemorySizeInMegabytes()
 
 int SystemStats::getPageSize()
 {
-    return static_cast<int> (sysconf (_SC_PAGESIZE));
+    return sysconf (_SC_PAGESIZE);
 }
 
 //==============================================================================
@@ -318,7 +241,7 @@ String SystemStats::getLogonName()
     if (struct passwd* const pw = getpwuid (getuid()))
         return CharPointer_UTF8 (pw->pw_name);
 
-    return {};
+    return String();
 }
 
 String SystemStats::getFullUserName()
@@ -332,7 +255,7 @@ String SystemStats::getComputerName()
     if (gethostname (name, sizeof (name) - 1) == 0)
         return name;
 
-    return {};
+    return String();
 }
 
 
@@ -343,7 +266,7 @@ String SystemStats::getDisplayLanguage() { return getUserLanguage() + "-" + getU
 //==============================================================================
 void CPUInformation::initialise() noexcept
 {
-    numPhysicalCPUs = numLogicalCPUs = jmax ((int) 1, (int) sysconf (_SC_NPROCESSORS_ONLN));
+    numCpus = jmax ((int) 1, (int) sysconf (_SC_NPROCESSORS_ONLN));
 }
 
 //==============================================================================
@@ -352,7 +275,7 @@ uint32 juce_millisecondsSinceStartup() noexcept
     timespec t;
     clock_gettime (CLOCK_MONOTONIC, &t);
 
-    return static_cast<uint32> (t.tv_sec) * 1000U + static_cast<uint32> (t.tv_nsec) / 1000000U;
+    return t.tv_sec * 1000 + t.tv_nsec / 1000000;
 }
 
 int64 Time::getHighResolutionTicks() noexcept

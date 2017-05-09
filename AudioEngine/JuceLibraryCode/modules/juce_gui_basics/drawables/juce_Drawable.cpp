@@ -2,24 +2,22 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2015 - ROLI Ltd.
 
-   JUCE is an open source library subject to commercial or open-source
-   licensing.
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   Details of these licenses can be found at: www.gnu.org/licenses
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
+   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-   Or: You may also use this code under the terms of the GPL v3 (see
-   www.gnu.org/licenses).
+   ------------------------------------------------------------------------------
 
-   JUCE IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL WARRANTIES, WHETHER
-   EXPRESSED OR IMPLIED, INCLUDING MERCHANTABILITY AND FITNESS FOR PURPOSE, ARE
-   DISCLAIMED.
+   To release a closed-source product which uses JUCE, commercial licenses are
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
@@ -33,9 +31,6 @@ Drawable::Drawable()
 Drawable::Drawable (const Drawable& other)
     : Component (other.getName())
 {
-    setInterceptsMouseClicks (false, false);
-    setPaintingIsUnclipped (true);
-
     setComponentID (other.getComponentID());
     setTransform (other.getTransform());
 }
@@ -79,7 +74,7 @@ void Drawable::drawAt (Graphics& g, float x, float y, float opacity) const
     draw (g, opacity, AffineTransform::translation (x, y));
 }
 
-void Drawable::drawWithin (Graphics& g, Rectangle<float> destArea,
+void Drawable::drawWithin (Graphics& g, const Rectangle<float>& destArea,
                            RectanglePlacement placement, float opacity) const
 {
     draw (g, opacity, placement.getTransformToFit (getDrawableBounds(), destArea));
@@ -101,14 +96,14 @@ void Drawable::parentHierarchyChanged()
     setBoundsToEnclose (getDrawableBounds());
 }
 
-void Drawable::setBoundsToEnclose (Rectangle<float> area)
+void Drawable::setBoundsToEnclose (const Rectangle<float>& area)
 {
+    Drawable* const parent = getParent();
     Point<int> parentOrigin;
-
-    if (auto* parent = getParent())
+    if (parent != nullptr)
         parentOrigin = parent->originRelativeToComponent;
 
-    auto newBounds = area.getSmallestIntegerContainer() + parentOrigin;
+    const Rectangle<int> newBounds (area.getSmallestIntegerContainer() + parentOrigin);
     originRelativeToComponent = parentOrigin - newBounds.getPosition();
     setBounds (newBounds);
 }
@@ -119,7 +114,7 @@ bool Drawable::replaceColour (Colour original, Colour replacement)
     bool changed = false;
 
     for (int i = getNumChildComponents(); --i >= 0;)
-        if (auto* d = dynamic_cast<Drawable*> (getChildComponent(i)))
+        if (Drawable* d = dynamic_cast<Drawable*> (getChildComponent(i)))
             changed = d->replaceColour (original, replacement) || changed;
 
     return changed;
@@ -142,17 +137,17 @@ Drawable* Drawable::createFromImageData (const void* data, const size_t numBytes
 {
     Drawable* result = nullptr;
 
-    auto image = ImageFileFormat::loadFrom (data, numBytes);
+    Image image (ImageFileFormat::loadFrom (data, numBytes));
 
     if (image.isValid())
     {
-        auto* di = new DrawableImage();
+        DrawableImage* const di = new DrawableImage();
         di->setImage (image);
         result = di;
     }
     else
     {
-        auto asString = String::createStringFromData (data, (int) numBytes);
+        const String asString (String::createStringFromData (data, (int) numBytes));
 
         XmlDocument doc (asString);
         ScopedPointer<XmlElement> outer (doc.getDocumentElement (true));
@@ -186,15 +181,17 @@ Drawable* Drawable::createFromImageFile (const File& file)
 
 //==============================================================================
 template <class DrawableClass>
-struct DrawableTypeHandler  : public ComponentBuilder::TypeHandler
+class DrawableTypeHandler  : public ComponentBuilder::TypeHandler
 {
-    DrawableTypeHandler() : ComponentBuilder::TypeHandler (DrawableClass::valueTreeType)
+public:
+    DrawableTypeHandler()
+        : ComponentBuilder::TypeHandler (DrawableClass::valueTreeType)
     {
     }
 
     Component* addNewComponentFromState (const ValueTree& state, Component* parent)
     {
-        auto* d = new DrawableClass();
+        DrawableClass* const d = new DrawableClass();
 
         if (parent != nullptr)
             parent->addAndMakeVisible (d);
@@ -205,20 +202,19 @@ struct DrawableTypeHandler  : public ComponentBuilder::TypeHandler
 
     void updateComponentFromState (Component* component, const ValueTree& state)
     {
-        if (auto* d = dynamic_cast<DrawableClass*> (component))
-            d->refreshFromValueTree (state, *this->getBuilder());
-        else
-            jassertfalse;
+        DrawableClass* const d = dynamic_cast<DrawableClass*> (component);
+        jassert (d != nullptr);
+        d->refreshFromValueTree (state, *this->getBuilder());
     }
 };
 
 void Drawable::registerDrawableTypeHandlers (ComponentBuilder& builder)
 {
-    builder.registerTypeHandler (new DrawableTypeHandler<DrawablePath>());
-    builder.registerTypeHandler (new DrawableTypeHandler<DrawableComposite>());
-    builder.registerTypeHandler (new DrawableTypeHandler<DrawableRectangle>());
-    builder.registerTypeHandler (new DrawableTypeHandler<DrawableImage>());
-    builder.registerTypeHandler (new DrawableTypeHandler<DrawableText>());
+    builder.registerTypeHandler (new DrawableTypeHandler <DrawablePath>());
+    builder.registerTypeHandler (new DrawableTypeHandler <DrawableComposite>());
+    builder.registerTypeHandler (new DrawableTypeHandler <DrawableRectangle>());
+    builder.registerTypeHandler (new DrawableTypeHandler <DrawableImage>());
+    builder.registerTypeHandler (new DrawableTypeHandler <DrawableText>());
 }
 
 Drawable* Drawable::createFromValueTree (const ValueTree& tree, ComponentBuilder::ImageProvider* imageProvider)
@@ -228,7 +224,7 @@ Drawable* Drawable::createFromValueTree (const ValueTree& tree, ComponentBuilder
     registerDrawableTypeHandlers (builder);
 
     ScopedPointer<Component> comp (builder.createComponent());
-    auto* d = dynamic_cast<Drawable*> (static_cast<Component*> (comp));
+    Drawable* const d = dynamic_cast<Drawable*> (static_cast<Component*> (comp));
 
     if (d != nullptr)
         comp.release();
@@ -237,7 +233,8 @@ Drawable* Drawable::createFromValueTree (const ValueTree& tree, ComponentBuilder
 }
 
 //==============================================================================
-Drawable::ValueTreeWrapperBase::ValueTreeWrapperBase (const ValueTree& s)  : state (s)
+Drawable::ValueTreeWrapperBase::ValueTreeWrapperBase (const ValueTree& state_)
+    : state (state_)
 {
 }
 

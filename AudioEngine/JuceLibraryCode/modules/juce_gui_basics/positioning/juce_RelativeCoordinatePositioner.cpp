@@ -2,34 +2,30 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2015 - ROLI Ltd.
 
-   JUCE is an open source library subject to commercial or open-source
-   licensing.
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   Details of these licenses can be found at: www.gnu.org/licenses
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
+   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-   Or: You may also use this code under the terms of the GPL v3 (see
-   www.gnu.org/licenses).
+   ------------------------------------------------------------------------------
 
-   JUCE IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL WARRANTIES, WHETHER
-   EXPRESSED OR IMPLIED, INCLUDING MERCHANTABILITY AND FITNESS FOR PURPOSE, ARE
-   DISCLAIMED.
+   To release a closed-source product which uses JUCE, commercial licenses are
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-struct MarkerListScope  : public Expression::Scope
+class MarkerListScope  : public Expression::Scope
 {
+public:
     MarkerListScope (Component& comp) : component (comp) {}
-
-    // Suppress a VS2013 compiler warning
-    MarkerListScope& operator= (const MarkerListScope&) = delete;
 
     Expression getSymbolValue (const String& symbol) const override
     {
@@ -42,7 +38,7 @@ struct MarkerListScope  : public Expression::Scope
 
         MarkerList* list;
 
-        if (auto* marker = findMarker (component, symbol, list))
+        if (const MarkerList::Marker* const marker = findMarker (component, symbol, list))
             return Expression (marker->position.getExpression().evaluate (*this));
 
         return Expression::Scope::getSymbolValue (symbol);
@@ -52,7 +48,7 @@ struct MarkerListScope  : public Expression::Scope
     {
         if (scopeName == RelativeCoordinate::Strings::parent)
         {
-            if (auto* parent = component.getParentComponent())
+            if (Component* const parent = component.getParentComponent())
             {
                 visitor.visit (MarkerListScope (*parent));
                 return;
@@ -86,7 +82,10 @@ struct MarkerListScope  : public Expression::Scope
         return marker;
     }
 
+private:
     Component& component;
+
+    JUCE_DECLARE_NON_COPYABLE (MarkerListScope)
 };
 
 //==============================================================================
@@ -126,9 +125,9 @@ Expression RelativeCoordinatePositionerBase::ComponentScope::getSymbolValue (con
 
 void RelativeCoordinatePositionerBase::ComponentScope::visitRelativeScope (const String& scopeName, Visitor& visitor) const
 {
-    if (auto* targetComp = (scopeName == RelativeCoordinate::Strings::parent)
-                               ? component.getParentComponent()
-                               : findSiblingComponent (scopeName))
+    if (Component* const targetComp = (scopeName == RelativeCoordinate::Strings::parent)
+                                           ? component.getParentComponent()
+                                           : findSiblingComponent (scopeName))
         visitor.visit (ComponentScope (*targetComp));
     else
         Expression::Scope::visitRelativeScope (scopeName, visitor);
@@ -216,6 +215,8 @@ public:
 private:
     RelativeCoordinatePositionerBase& positioner;
     bool& ok;
+
+    JUCE_DECLARE_NON_COPYABLE (DependencyFinderScope)
 };
 
 //==============================================================================

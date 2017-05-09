@@ -2,25 +2,34 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2016 - ROLI Ltd.
 
-   JUCE is an open source library subject to commercial or open-source
-   licensing.
+   Permission is granted to use this software under the terms of the ISC license
+   http://www.isc.org/downloads/software-support-policy/isc-license/
 
-   The code included in this file is provided under the terms of the ISC license
-   http://www.isc.org/downloads/software-support-policy/isc-license. Permission
-   To use, copy, modify, and/or distribute this software for any purpose with or
-   without fee is hereby granted provided that the above copyright notice and
-   this permission notice appear in all copies.
+   Permission to use, copy, modify, and/or distribute this software for any
+   purpose with or without fee is hereby granted, provided that the above
+   copyright notice and this permission notice appear in all copies.
 
-   JUCE IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL WARRANTIES, WHETHER
-   EXPRESSED OR IMPLIED, INCLUDING MERCHANTABILITY AND FITNESS FOR PURPOSE, ARE
-   DISCLAIMED.
+   THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH REGARD
+   TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+   FITNESS. IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT,
+   OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+   USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+   TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE
+   OF THIS SOFTWARE.
+
+   -----------------------------------------------------------------------------
+
+   To release a closed-source product which uses other parts of JUCE not
+   licensed under the ISC terms, commercial licenses are available: visit
+   www.juce.com for more information.
 
   ==============================================================================
 */
 
-#pragma once
+#ifndef JUCE_MEMORYBLOCK_H_INCLUDED
+#define JUCE_MEMORYBLOCK_H_INCLUDED
 
 
 //==============================================================================
@@ -61,11 +70,10 @@ public:
     */
     MemoryBlock& operator= (const MemoryBlock&);
 
-    /** Move constructor */
+   #if JUCE_COMPILER_SUPPORTS_MOVE_SEMANTICS
     MemoryBlock (MemoryBlock&&) noexcept;
-
-    /** Move assignment operator */
     MemoryBlock& operator= (MemoryBlock&&) noexcept;
+   #endif
 
     //==============================================================================
     /** Compares two memory blocks.
@@ -95,11 +103,6 @@ public:
     template <typename Type>
     char& operator[] (const Type offset) const noexcept             { return data [offset]; }
 
-    /** Returns an iterator for the data. */
-    char* begin() const noexcept                                    { return data; }
-
-    /** Returns an end-iterator for the data. */
-    char* end() const noexcept                                      { return begin() + getSize(); }
 
     //==============================================================================
     /** Returns the block's current allocated size, in bytes. */
@@ -250,9 +253,11 @@ public:
 
 private:
     //==============================================================================
-    typedef HeapBlock<char, true> HeapBlockType;
-    HeapBlockType data;
+    HeapBlock<char> data;
     size_t size;
 
     JUCE_LEAK_DETECTOR (MemoryBlock)
 };
+
+
+#endif   // JUCE_MEMORYBLOCK_H_INCLUDED

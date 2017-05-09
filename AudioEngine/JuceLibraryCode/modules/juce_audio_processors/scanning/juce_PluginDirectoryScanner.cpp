@@ -2,24 +2,22 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2015 - ROLI Ltd.
 
-   JUCE is an open source library subject to commercial or open-source
-   licensing.
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   Details of these licenses can be found at: www.gnu.org/licenses
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
+   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-   Or: You may also use this code under the terms of the GPL v3 (see
-   www.gnu.org/licenses).
+   ------------------------------------------------------------------------------
 
-   JUCE IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL WARRANTIES, WHETHER
-   EXPRESSED OR IMPLIED, INCLUDING MERCHANTABILITY AND FITNESS FOR PURPOSE, ARE
-   DISCLAIMED.
+   To release a closed-source product which uses JUCE, commercial licenses are
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
@@ -41,6 +39,7 @@ PluginDirectoryScanner::PluginDirectoryScanner (KnownPluginList& listToAddTo,
     : list (listToAddTo),
       format (formatToLookFor),
       deadMansPedalFile (deadMansPedal),
+      progress (0),
       allowAsync (allowPluginsWhichRequireAsynchronousInstantiation)
 {
     directoriesToSearch.removeRedundantPaths();
@@ -49,10 +48,16 @@ PluginDirectoryScanner::PluginDirectoryScanner (KnownPluginList& listToAddTo,
 
     // If any plugins have crashed recently when being loaded, move them to the
     // end of the list to give the others a chance to load correctly..
-    for (auto& crashed : readDeadMansPedalFile (deadMansPedalFile))
+    const StringArray crashedPlugins (readDeadMansPedalFile (deadMansPedalFile));
+
+    for (int i = 0; i < crashedPlugins.size(); ++i)
+    {
+        const String f = crashedPlugins[i];
+
         for (int j = filesOrIdentifiersToScan.size(); --j >= 0;)
-            if (crashed == filesOrIdentifiersToScan[j])
+            if (f == filesOrIdentifiersToScan[j])
                 filesOrIdentifiersToScan.move (j, -1);
+    }
 
     applyBlacklistingsFromDeadMansPedal (listToAddTo, deadMansPedalFile);
     nextIndex.set (filesOrIdentifiersToScan.size());
@@ -74,23 +79,23 @@ void PluginDirectoryScanner::updateProgress()
     progress = (1.0f - nextIndex.get() / (float) filesOrIdentifiersToScan.size());
 }
 
-bool PluginDirectoryScanner::scanNextFile (bool dontRescanIfAlreadyInList,
+bool PluginDirectoryScanner::scanNextFile (const bool dontRescanIfAlreadyInList,
                                            String& nameOfPluginBeingScanned)
 {
     const int index = --nextIndex;
 
     if (index >= 0)
     {
-        auto file = filesOrIdentifiersToScan [index];
+        const String file (filesOrIdentifiersToScan [index]);
 
-        if (file.isNotEmpty() && ! (dontRescanIfAlreadyInList && list.isListingUpToDate (file, format)))
+        if (file.isNotEmpty() && ! list.isListingUpToDate (file, format))
         {
             nameOfPluginBeingScanned = format.getNameOfPluginFromIdentifier (file);
 
-            OwnedArray<PluginDescription> typesFound;
+            OwnedArray <PluginDescription> typesFound;
 
             // Add this plugin to the end of the dead-man's pedal list in case it crashes...
-            auto crashedPlugins = readDeadMansPedalFile (deadMansPedalFile);
+            StringArray crashedPlugins (readDeadMansPedalFile (deadMansPedalFile));
             crashedPlugins.removeString (file);
             crashedPlugins.add (file);
             setDeadMansPedalFile (crashedPlugins);
@@ -126,6 +131,8 @@ void PluginDirectoryScanner::applyBlacklistingsFromDeadMansPedal (KnownPluginLis
 {
     // If any plugins have crashed recently when being loaded, move them to the
     // end of the list to give the others a chance to load correctly..
-    for (auto& crashedPlugin : readDeadMansPedalFile (file))
-        list.addToBlacklist (crashedPlugin);
+    const StringArray crashedPlugins (readDeadMansPedalFile (file));
+
+    for (int i = 0; i < crashedPlugins.size(); ++i)
+        list.addToBlacklist (crashedPlugins[i]);
 }

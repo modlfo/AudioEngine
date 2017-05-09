@@ -2,25 +2,34 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2016 - ROLI Ltd.
 
-   JUCE is an open source library subject to commercial or open-source
-   licensing.
+   Permission is granted to use this software under the terms of the ISC license
+   http://www.isc.org/downloads/software-support-policy/isc-license/
 
-   The code included in this file is provided under the terms of the ISC license
-   http://www.isc.org/downloads/software-support-policy/isc-license. Permission
-   To use, copy, modify, and/or distribute this software for any purpose with or
-   without fee is hereby granted provided that the above copyright notice and
-   this permission notice appear in all copies.
+   Permission to use, copy, modify, and/or distribute this software for any
+   purpose with or without fee is hereby granted, provided that the above
+   copyright notice and this permission notice appear in all copies.
 
-   JUCE IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL WARRANTIES, WHETHER
-   EXPRESSED OR IMPLIED, INCLUDING MERCHANTABILITY AND FITNESS FOR PURPOSE, ARE
-   DISCLAIMED.
+   THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH REGARD
+   TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+   FITNESS. IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT,
+   OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+   USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+   TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE
+   OF THIS SOFTWARE.
+
+   -----------------------------------------------------------------------------
+
+   To release a closed-source product which uses other parts of JUCE not
+   licensed under the ISC terms, commercial licenses are available: visit
+   www.juce.com for more information.
 
   ==============================================================================
 */
 
-#pragma once
+#ifndef JUCE_AUDIOCHANNELSET_H_INCLUDED
+#define JUCE_AUDIOCHANNELSET_H_INCLUDED
 
 
 //==============================================================================
@@ -51,21 +60,21 @@ public:
 
     /** Creates a zero-channel set which can be used to indicate that a
         bus is disabled. */
-    static AudioChannelSet JUCE_CALLTYPE disabled();
+    static AudioChannelSet disabled();
 
     //==============================================================================
     /** Creates a one-channel mono set (centre).
 
         Is equivalent to: kMonoAAX (VST), AAX_eStemFormat_Mono (AAX), kAudioChannelLayoutTag_Mono (CoreAudio)
     */
-    static AudioChannelSet JUCE_CALLTYPE mono();
+    static AudioChannelSet mono();
 
 
     /** Creates a set containing a stereo set (left, right).
 
         Is equivalent to: kStereo (VST), AAX_eStemFormat_Stereo (AAX), kAudioChannelLayoutTag_Stereo (CoreAudio)
     */
-    static AudioChannelSet JUCE_CALLTYPE stereo();
+    static AudioChannelSet stereo();
 
 
     //==============================================================================
@@ -76,7 +85,7 @@ public:
         This format is referred to as "LRC" in Cubase.
         This format is referred to as "LCR" in Pro Tools.
     */
-    static AudioChannelSet JUCE_CALLTYPE createLCR();
+    static AudioChannelSet createLCR();
 
 
     /** Creates a set containing an LRS set (left, right, surround).
@@ -85,7 +94,7 @@ public:
 
         This format is referred to as "LRS" in Cubase.
     */
-    static AudioChannelSet JUCE_CALLTYPE createLRS();
+    static AudioChannelSet createLRS();
 
 
     /** Creates a set containing an LCRS set (left, right, centre, surround).
@@ -96,7 +105,7 @@ public:
         This format is referred to as "LRCS" in Cubase.
         This format is referred to as "LCRS" in Pro Tools.
     */
-    static AudioChannelSet JUCE_CALLTYPE createLCRS();
+    static AudioChannelSet createLCRS();
 
 
     //==============================================================================
@@ -107,7 +116,7 @@ public:
         This format is referred to as "5.0" in Cubase.
         This format is referred to as "5.0" in Pro Tools.
     */
-    static AudioChannelSet JUCE_CALLTYPE create5point0();
+    static AudioChannelSet create5point0();
 
 
     /** Creates a set for a 5.1 surround setup (left, right, centre, leftSurround, rightSurround, LFE).
@@ -118,7 +127,7 @@ public:
         This format is referred to as "5.1" in Cubase.
         This format is referred to as "5.1" in Pro Tools.
     */
-    static AudioChannelSet JUCE_CALLTYPE create5point1();
+    static AudioChannelSet create5point1();
 
 
     /** Creates a set for a 6.0 Cine surround setup (left, right, centre, leftSurround, rightSurround, centreSurround).
@@ -129,7 +138,7 @@ public:
         This format is referred to as "6.0 Cine" in Cubase.
         This format is referred to as "6.0" in Pro Tools.
     */
-    static AudioChannelSet JUCE_CALLTYPE create6point0();
+    static AudioChannelSet create6point0();
 
 
     /** Creates a set for a 6.1 Cine surround setup (left, right, centre, leftSurround, rightSurround, centreSurround, LFE).
@@ -138,7 +147,7 @@ public:
 
          This format is referred to as "6.1" in Pro Tools.
      */
-    static AudioChannelSet JUCE_CALLTYPE create6point1();
+    static AudioChannelSet create6point1();
 
 
     /** Creates a set for a 6.0 Music surround setup (left, right, leftSurround, rightSurround, leftSurroundSide, rightSurroundSide).
@@ -147,14 +156,14 @@ public:
 
         This format is referred to as "6.0 Music" in Cubase.
     */
-    static AudioChannelSet JUCE_CALLTYPE create6point0Music();
+    static AudioChannelSet create6point0Music();
 
 
     /** Creates a set for a 6.0 Music surround setup (left, right, leftSurround, rightSurround, leftSurroundSide, rightSurroundSide, LFE).
 
         Is equivalent to: k61Music (VST), n/a (AAX), kAudioChannelLayoutTag_DTS_6_1_A (CoreAudio)
     */
-    static AudioChannelSet JUCE_CALLTYPE create6point1Music();
+    static AudioChannelSet create6point1Music();
 
 
     /** Creates a set for a DTS 7.0 surround setup (left, right, centre, leftSurroundSide, rightSurroundSide, leftSurroundRear, rightSurroundRear).
@@ -163,7 +172,7 @@ public:
 
         This format is referred to as "7.0" in Pro Tools.
     */
-    static AudioChannelSet JUCE_CALLTYPE create7point0();
+    static AudioChannelSet create7point0();
 
 
     /** Creates a set for a SDDS 7.0 surround setup (left, right, centre, leftSurround, rightSurround, leftCentre, rightCentre).
@@ -172,7 +181,7 @@ public:
 
         This format is referred to as "7.0 SDDS" in Pro Tools.
      */
-    static AudioChannelSet JUCE_CALLTYPE create7point0SDDS();
+    static AudioChannelSet create7point0SDDS();
 
 
     /** Creates a set for a DTS 7.1 surround setup (left, right, centre, leftSurroundSide, rightSurroundSide, leftSurroundRear, rightSurroundRear, LFE).
@@ -182,7 +191,7 @@ public:
         This format is referred to as "7.1 (3/4.1)" in Logic Pro.
         This format is referred to as "7.1" in Pro Tools.
     */
-    static AudioChannelSet JUCE_CALLTYPE create7point1();
+    static AudioChannelSet create7point1();
 
 
     /** Creates a set for a 7.1 surround setup (left, right, centre, leftSurround, rightSurround, leftCentre, rightCentre, LFE).
@@ -192,7 +201,7 @@ public:
         This format is referred to as "7.1 (SDDS)" in Logic Pro.
         This format is referred to as "7.1 SDDS" in Pro Tools.
     */
-    static AudioChannelSet JUCE_CALLTYPE create7point1SDDS();
+    static AudioChannelSet create7point1SDDS();
 
 
     //==============================================================================
@@ -200,7 +209,7 @@ public:
 
         Is equivalent to: kBFormat (VST), n/a (AAX), kAudioChannelLayoutTag_Ambisonic_B_Format (CoreAudio)
     */
-    static AudioChannelSet JUCE_CALLTYPE ambisonic();
+    static AudioChannelSet ambisonic();
 
 
     /** Creates a set for quadraphonic surround setup (left, right, leftSurround, rightSurround)
@@ -211,45 +220,45 @@ public:
         This format is referred to as "Quadro" in Cubase.
         This format is referred to as "Quad" in Pro Tools.
      */
-    static AudioChannelSet JUCE_CALLTYPE quadraphonic();
+    static AudioChannelSet quadraphonic();
 
 
     /** Creates a set for pentagonal surround setup (left, right, centre, leftSurroundRear, rightSurroundRear).
 
         Is equivalent to: n/a (VST), n/a (AAX), kAudioChannelLayoutTag_Pentagonal (CoreAudio)
     */
-    static AudioChannelSet JUCE_CALLTYPE pentagonal();
+    static AudioChannelSet pentagonal();
 
 
     /** Creates a set for hexagonal surround setup (left, right, leftSurroundRear, rightSurroundRear, centre, surroundCentre).
 
         Is equivalent to: n/a (VST), n/a (AAX), kAudioChannelLayoutTag_Hexagonal (CoreAudio)
     */
-    static AudioChannelSet JUCE_CALLTYPE hexagonal();
+    static AudioChannelSet hexagonal();
 
 
     /** Creates a set for octagonal surround setup (left, right, leftSurround, rightSurround, centre, centreSurround, wideLeft, wideRight).
 
         Is equivalent to: n/a (VST), n/a (AAX), kAudioChannelLayoutTag_Octagonal (CoreAudio)
     */
-    static AudioChannelSet JUCE_CALLTYPE octagonal();
+    static AudioChannelSet octagonal();
 
     //==============================================================================
     /** Creates a set of untyped discrete channels. */
-    static AudioChannelSet JUCE_CALLTYPE discreteChannels (int numChannels);
+    static AudioChannelSet discreteChannels (int numChannels);
 
     /** Create a canonical channel set for a given number of channels.
         For example, numChannels = 1 will return mono, numChannels = 2 will return stereo, etc. */
-    static AudioChannelSet JUCE_CALLTYPE canonicalChannelSet (int numChannels);
+    static AudioChannelSet canonicalChannelSet (int numChannels);
 
     /** Create a channel set for a given number of channels which is non-discrete.
         If numChannels is larger than the number of channels of the surround format
         with the maximum amount of channels (currently 7.1 Surround), then this
         function returns an empty set.*/
-    static AudioChannelSet JUCE_CALLTYPE namedChannelSet (int numChannels);
+    static AudioChannelSet namedChannelSet (int numChannels);
 
     /** Return an array of channel sets which have a given number of channels */
-    static Array<AudioChannelSet> JUCE_CALLTYPE channelSetsWithNumberOfChannels (int numChannels);
+    static Array<AudioChannelSet> channelSetsWithNumberOfChannels (int numChannels);
 
     //==============================================================================
     /** Represents different audio channel types. */
@@ -294,13 +303,13 @@ public:
     };
 
     /** Returns the name of a given channel type. For example, this method may return "Surround Left". */
-    static String JUCE_CALLTYPE getChannelTypeName (ChannelType);
+    static String getChannelTypeName (ChannelType);
 
     /** Returns the abbreviated name of a channel type. For example, this method may return "Ls". */
-    static String JUCE_CALLTYPE getAbbreviatedChannelTypeName (ChannelType);
+    static String getAbbreviatedChannelTypeName (ChannelType);
 
     /** Returns the channel type from an abbreviated name. */
-    static ChannelType JUCE_CALLTYPE getChannelTypeFromAbbreviation (const String& abbreviation);
+    static ChannelType getChannelTypeFromAbbreviation (const String& abbreviation);
 
     //==============================================================================
     enum
@@ -360,3 +369,7 @@ private:
 
     explicit AudioChannelSet (uint32);
 };
+
+
+
+#endif   // JUCE_AUDIOCHANNELSET_H_INCLUDED

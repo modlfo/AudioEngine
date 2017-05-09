@@ -2,24 +2,22 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2015 - ROLI Ltd.
 
-   JUCE is an open source library subject to commercial or open-source
-   licensing.
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   Details of these licenses can be found at: www.gnu.org/licenses
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
+   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-   Or: You may also use this code under the terms of the GPL v3 (see
-   www.gnu.org/licenses).
+   ------------------------------------------------------------------------------
 
-   JUCE IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL WARRANTIES, WHETHER
-   EXPRESSED OR IMPLIED, INCLUDING MERCHANTABILITY AND FITNESS FOR PURPOSE, ARE
-   DISCLAIMED.
+   To release a closed-source product which uses JUCE, commercial licenses are
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
@@ -28,10 +26,11 @@ class MouseInputSourceInternal   : private AsyncUpdater
 {
 public:
     //==============================================================================
-    MouseInputSourceInternal (const int i, const MouseInputSource::InputSourceType type)
-        : index (i), inputType (type), pressure (0.0f), orientation (0.0f), rotation (0.0f), tiltX (0.0f), tiltY (0.0f),
-          isUnboundedMouseModeOn (false), isCursorVisibleUntilOffscreen (false), lastPeer (nullptr),
-          currentCursorHandle (nullptr), mouseEventCounter (0), mouseMovedSignificantlySincePressed (false)
+    MouseInputSourceInternal (const int i, const bool isMouse)
+        : index (i), isMouseDevice (isMouse), pressure (0.0f),
+          isUnboundedMouseModeOn (false), isCursorVisibleUntilOffscreen (false),
+          lastPeer (nullptr), currentCursorHandle (nullptr),
+          mouseEventCounter (0), mouseMovedSignificantlySincePressed (false)
     {
     }
 
@@ -94,8 +93,8 @@ public:
         // This needs to return the live position if possible, but it mustn't update the lastScreenPos
         // value, because that can cause continuity problems.
         return ScalingHelpers::unscaledScreenPosToScaled
-                    (unboundedMouseOffset + (inputType != MouseInputSource::InputSourceType::touch ? MouseInputSource::getCurrentRawMousePosition()
-                                                                                                   : lastScreenPos));
+                    (unboundedMouseOffset + (isMouseDevice ? MouseInputSource::getCurrentRawMousePosition()
+                                                           : lastScreenPos));
     }
 
     void setScreenPosition (Point<float> p)
@@ -103,15 +102,11 @@ public:
         MouseInputSource::setRawMousePosition (ScalingHelpers::scaledScreenPosToUnscaled (p));
     }
 
-    bool isPressureValid()    const noexcept     { return pressure >= 0.0f && pressure <= 1.0f; }
-    bool isOrientationValid() const noexcept     { return orientation >= 0.0f && orientation <= 2.0f * float_Pi; }
-    bool isRotationValid() const noexcept        { return rotation >= 0.0f && rotation <= 2.0f * float_Pi; }
-    bool isTiltValid (bool isX) const noexcept   { return isX ? (tiltX >= -1.0f && tiltX <= 1.0f) : (tiltY >= -1.0f && tiltY <= 1.0f); }
+    bool isPressureValid() const noexcept       { return pressure > 0.0f && pressure < 1.0f; }
 
     //==============================================================================
    #if JUCE_DUMP_MOUSE_EVENTS
-    #define JUCE_MOUSE_EVENT_
-    (desc)   DBG ("Mouse " << desc << " #" << index \
+    #define JUCE_MOUSE_EVENT_DBG(desc)   DBG ("Mouse " << desc << " #" << index \
                                                 << ": " << screenPosToLocalPos (comp, screenPos).toString() \
                                                 << " - Comp: " << String::toHexString ((pointer_sized_int) &comp));
    #else
@@ -139,19 +134,19 @@ public:
     void sendMouseDown (Component& comp, Point<float> screenPos, Time time)
     {
         JUCE_MOUSE_EVENT_DBG ("down")
-        comp.internalMouseDown (MouseInputSource (this), screenPosToLocalPos (comp, screenPos), time, pressure, orientation, rotation, tiltX, tiltY);
+        comp.internalMouseDown (MouseInputSource (this), screenPosToLocalPos (comp, screenPos), time, pressure);
     }
 
     void sendMouseDrag (Component& comp, Point<float> screenPos, Time time)
     {
         JUCE_MOUSE_EVENT_DBG ("drag")
-        comp.internalMouseDrag (MouseInputSource (this), screenPosToLocalPos (comp, screenPos), time, pressure, orientation, rotation, tiltX, tiltY);
+        comp.internalMouseDrag (MouseInputSource (this), screenPosToLocalPos (comp, screenPos), time, pressure);
     }
 
     void sendMouseUp (Component& comp, Point<float> screenPos, Time time, const ModifierKeys oldMods)
     {
         JUCE_MOUSE_EVENT_DBG ("up")
-            comp.internalMouseUp (MouseInputSource (this), screenPosToLocalPos (comp, screenPos), time, oldMods, pressure, orientation, rotation, tiltX, tiltY);
+        comp.internalMouseUp (MouseInputSource (this), screenPosToLocalPos (comp, screenPos), time, oldMods, pressure);
     }
 
     void sendMouseWheel (Component& comp, Point<float> screenPos, Time time, const MouseWheelDetails& wheel)
@@ -295,32 +290,17 @@ public:
 
     //==============================================================================
     void handleEvent (ComponentPeer& newPeer, Point<float> positionWithinPeer, Time time,
-                      const ModifierKeys newMods, float newPressure, float newOrientation, PenDetails pen)
+                      const ModifierKeys newMods, float newPressure)
     {
         lastTime = time;
-
         const bool pressureChanged = (pressure != newPressure);
         pressure = newPressure;
-
-        const bool orientationChanged = (orientation != newOrientation);
-        orientation = newOrientation;
-
-        const bool rotationChanged = (rotation != pen.rotation);
-        rotation = pen.rotation;
-
-        const bool tiltChanged = (tiltX != pen.tiltX || tiltY != pen.tiltY);
-        tiltX = pen.tiltX;
-        tiltY = pen.tiltY;
-
-        const bool shouldUpdate = (pressureChanged || orientationChanged || rotationChanged || tiltChanged);
-
         ++mouseEventCounter;
-
         const Point<float> screenPos (newPeer.localToGlobal (positionWithinPeer));
 
         if (isDragging() && newMods.isAnyMouseButtonDown())
         {
-            setScreenPos (screenPos, time, shouldUpdate);
+            setScreenPos (screenPos, time, pressureChanged);
         }
         else
         {
@@ -334,7 +314,7 @@ public:
                 peer = getPeer();
 
                 if (peer != nullptr)
-                    setScreenPos (screenPos, time, shouldUpdate);
+                    setScreenPos (screenPos, time, pressureChanged);
             }
         }
     }
@@ -365,8 +345,6 @@ public:
         // scrollable components.
         if (lastNonInertialWheelTarget == nullptr || ! wheel.isInertial)
             lastNonInertialWheelTarget = getTargetForGesture (peer, positionWithinPeer, time, screenPos);
-        else
-            screenPos = peer.localToGlobal (positionWithinPeer);
 
         if (Component* target = lastNonInertialWheelTarget)
             sendMouseWheel (*target, screenPos, time, wheel);
@@ -495,14 +473,10 @@ public:
 
     //==============================================================================
     const int index;
-    const MouseInputSource::InputSourceType inputType;
+    const bool isMouseDevice;
     Point<float> lastScreenPos, unboundedMouseOffset; // NB: these are unscaled coords
     ModifierKeys buttonState;
     float pressure;
-    float orientation;
-    float rotation;
-    float tiltX;
-    float tiltY;
 
     bool isUnboundedMouseModeOn, isCursorVisibleUntilOffscreen;
 
@@ -575,45 +549,36 @@ MouseInputSource& MouseInputSource::operator= (const MouseInputSource& other) no
     return *this;
 }
 
-MouseInputSource::InputSourceType MouseInputSource::getType() const noexcept    { return pimpl->inputType; }
-bool MouseInputSource::isMouse() const noexcept                                 { return (getType() == MouseInputSource::InputSourceType::mouse); }
-bool MouseInputSource::isTouch() const noexcept                                 { return (getType() == MouseInputSource::InputSourceType::touch); }
-bool MouseInputSource::isPen() const noexcept                                   { return (getType() == MouseInputSource::InputSourceType::pen); }
-bool MouseInputSource::canHover() const noexcept                                { return ! isTouch(); }
-bool MouseInputSource::hasMouseWheel() const noexcept                           { return ! isTouch(); }
-int MouseInputSource::getIndex() const noexcept                                 { return pimpl->index; }
-bool MouseInputSource::isDragging() const noexcept                              { return pimpl->isDragging(); }
-Point<float> MouseInputSource::getScreenPosition() const noexcept               { return pimpl->getScreenPosition(); }
-ModifierKeys MouseInputSource::getCurrentModifiers() const noexcept             { return pimpl->getCurrentModifiers(); }
-float MouseInputSource::getCurrentPressure() const noexcept                     { return pimpl->pressure; }
-bool MouseInputSource::isPressureValid() const noexcept                         { return pimpl->isPressureValid(); }
-float MouseInputSource::getCurrentOrientation() const noexcept                  { return pimpl->orientation; }
-bool MouseInputSource::isOrientationValid() const noexcept                      { return pimpl->isOrientationValid(); }
-float MouseInputSource::getCurrentRotation() const noexcept                     { return pimpl->rotation; }
-bool MouseInputSource::isRotationValid() const noexcept                         { return pimpl->isRotationValid(); }
-float MouseInputSource::getCurrentTilt (bool tiltX) const noexcept              { return tiltX ? pimpl->tiltX : pimpl->tiltY; }
-bool MouseInputSource::isTiltValid (bool isX) const noexcept                    { return pimpl->isTiltValid (isX); }
-Component* MouseInputSource::getComponentUnderMouse() const                     { return pimpl->getComponentUnderMouse(); }
-void MouseInputSource::triggerFakeMove() const                                  { pimpl->triggerFakeMove(); }
-int MouseInputSource::getNumberOfMultipleClicks() const noexcept                { return pimpl->getNumberOfMultipleClicks(); }
-Time MouseInputSource::getLastMouseDownTime() const noexcept                    { return pimpl->getLastMouseDownTime(); }
-Point<float> MouseInputSource::getLastMouseDownPosition() const noexcept        { return pimpl->getLastMouseDownPosition(); }
+bool MouseInputSource::isMouse() const noexcept                          { return pimpl->isMouseDevice; }
+bool MouseInputSource::isTouch() const noexcept                          { return ! isMouse(); }
+bool MouseInputSource::canHover() const noexcept                         { return isMouse(); }
+bool MouseInputSource::hasMouseWheel() const noexcept                    { return isMouse(); }
+int MouseInputSource::getIndex() const noexcept                          { return pimpl->index; }
+bool MouseInputSource::isDragging() const noexcept                       { return pimpl->isDragging(); }
+Point<float> MouseInputSource::getScreenPosition() const noexcept        { return pimpl->getScreenPosition(); }
+ModifierKeys MouseInputSource::getCurrentModifiers() const noexcept      { return pimpl->getCurrentModifiers(); }
+float MouseInputSource::getCurrentPressure() const noexcept              { return pimpl->pressure; }
+bool MouseInputSource::isPressureValid() const noexcept                  { return pimpl->isPressureValid(); }
+Component* MouseInputSource::getComponentUnderMouse() const              { return pimpl->getComponentUnderMouse(); }
+void MouseInputSource::triggerFakeMove() const                           { pimpl->triggerFakeMove(); }
+int MouseInputSource::getNumberOfMultipleClicks() const noexcept         { return pimpl->getNumberOfMultipleClicks(); }
+Time MouseInputSource::getLastMouseDownTime() const noexcept             { return pimpl->getLastMouseDownTime(); }
+Point<float> MouseInputSource::getLastMouseDownPosition() const noexcept { return pimpl->getLastMouseDownPosition(); }
 bool MouseInputSource::hasMouseMovedSignificantlySincePressed() const noexcept  { return pimpl->hasMouseMovedSignificantlySincePressed(); }
-bool MouseInputSource::canDoUnboundedMovement() const noexcept                  { return ! isTouch(); }
+bool MouseInputSource::canDoUnboundedMovement() const noexcept           { return isMouse(); }
 void MouseInputSource::enableUnboundedMouseMovement (bool isEnabled, bool keepCursorVisibleUntilOffscreen) const
                                                                          { pimpl->enableUnboundedMouseMovement (isEnabled, keepCursorVisibleUntilOffscreen); }
 bool MouseInputSource::isUnboundedMouseMovementEnabled() const           { return pimpl->isUnboundedMouseModeOn; }
-bool MouseInputSource::hasMouseCursor() const noexcept                   { return ! isTouch(); }
+bool MouseInputSource::hasMouseCursor() const noexcept                   { return isMouse(); }
 void MouseInputSource::showMouseCursor (const MouseCursor& cursor)       { pimpl->showMouseCursor (cursor, false); }
 void MouseInputSource::hideCursor()                                      { pimpl->hideCursor(); }
 void MouseInputSource::revealCursor()                                    { pimpl->revealCursor (false); }
 void MouseInputSource::forceMouseCursorUpdate()                          { pimpl->revealCursor (true); }
 void MouseInputSource::setScreenPosition (Point<float> p)                { pimpl->setScreenPosition (p); }
 
-void MouseInputSource::handleEvent (ComponentPeer& peer, Point<float> pos, int64 time, ModifierKeys mods,
-                                    float pressure, float orientation, const PenDetails& pen)
+void MouseInputSource::handleEvent (ComponentPeer& peer, Point<float> pos, int64 time, ModifierKeys mods, float pressure)
 {
-    pimpl->handleEvent (peer, pos, Time (time), mods.withOnlyMouseButtons(), pressure, orientation, pen);
+    pimpl->handleEvent (peer, pos, Time (time), mods.withOnlyMouseButtons(), pressure);
 }
 
 void MouseInputSource::handleWheel (ComponentPeer& peer, Point<float> pos, int64 time, const MouseWheelDetails& wheel)
@@ -627,30 +592,22 @@ void MouseInputSource::handleMagnifyGesture (ComponentPeer& peer, Point<float> p
 }
 
 const float MouseInputSource::invalidPressure = 0.0f;
-const float MouseInputSource::invalidOrientation = 0.0f;
-const float MouseInputSource::invalidRotation = 0.0f;
-
-const float MouseInputSource::invalidTiltX = 0.0f;
-const float MouseInputSource::invalidTiltY = 0.0f;
 
 //==============================================================================
 struct MouseInputSource::SourceList  : public Timer
 {
     SourceList()
     {
-        addSource (0, MouseInputSource::InputSourceType::mouse);
+        addSource();
     }
 
     bool addSource();
-    bool canUseTouch();
 
-    MouseInputSource* addSource (int index, MouseInputSource::InputSourceType type)
+    void addSource (int index, bool isMouse)
     {
-        auto* s = new MouseInputSourceInternal (index, type);
+        MouseInputSourceInternal* s = new MouseInputSourceInternal (index, isMouse);
         sources.add (s);
         sourceArray.add (MouseInputSource (s));
-
-        return &sourceArray.getReference (sourceArray.size() - 1);
     }
 
     MouseInputSource* getMouseSource (int index) const noexcept
@@ -659,29 +616,21 @@ struct MouseInputSource::SourceList  : public Timer
                                                               : nullptr;
     }
 
-    MouseInputSource* getOrCreateMouseInputSource (MouseInputSource::InputSourceType type, int touchIndex = 0)
+    MouseInputSource* getOrCreateMouseInputSource (int touchIndex)
     {
-        if (type == MouseInputSource::InputSourceType::mouse || type == MouseInputSource::InputSourceType::pen)
+        jassert (touchIndex >= 0 && touchIndex < 100); // sanity-check on number of fingers
+
+        for (;;)
         {
-            for (auto& m : sourceArray)
-                if (type == m.getType())
-                    return &m;
+            if (MouseInputSource* mouse = getMouseSource (touchIndex))
+                return mouse;
 
-            addSource (0, type);
+            if (! addSource())
+            {
+                jassertfalse; // not enough mouse sources!
+                return nullptr;
+            }
         }
-        else if (type == MouseInputSource::InputSourceType::touch)
-        {
-            jassert (touchIndex >= 0 && touchIndex < 100); // sanity-check on number of fingers
-
-            for (auto& m : sourceArray)
-                if (type == m.getType() && touchIndex == m.getIndex())
-                    return &m;
-
-            if (canUseTouch())
-                return addSource (touchIndex, type);
-        }
-
-        return nullptr;
     }
 
     int getNumDraggingMouseSources() const noexcept

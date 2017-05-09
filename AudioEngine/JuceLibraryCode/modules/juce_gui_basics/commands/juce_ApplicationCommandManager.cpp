@@ -2,24 +2,22 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2015 - ROLI Ltd.
 
-   JUCE is an open source library subject to commercial or open-source
-   licensing.
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   Details of these licenses can be found at: www.gnu.org/licenses
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
+   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-   Or: You may also use this code under the terms of the GPL v3 (see
-   www.gnu.org/licenses).
+   ------------------------------------------------------------------------------
 
-   JUCE IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL WARRANTIES, WHETHER
-   EXPRESSED OR IMPLIED, INCLUDING MERCHANTABILITY AND FITNESS FOR PURPOSE, ARE
-   DISCLAIMED.
+   To release a closed-source product which uses JUCE, commercial licenses are
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
@@ -53,7 +51,7 @@ void ApplicationCommandManager::registerCommand (const ApplicationCommandInfo& n
     // the name isn't optional!
     jassert (newCommand.shortName.isNotEmpty());
 
-    if (auto* command = getMutableCommandForID (newCommand.commandID))
+    if (ApplicationCommandInfo* command = getMutableCommandForID (newCommand.commandID))
     {
         // Trying to re-register the same command ID with different parameters can often indicate a typo.
         // This assertion is here because I've found it useful catching some mistakes, but it may also cause
@@ -134,19 +132,19 @@ const ApplicationCommandInfo* ApplicationCommandManager::getCommandForID (const 
 
 String ApplicationCommandManager::getNameOfCommand (const CommandID commandID) const noexcept
 {
-    if (auto* ci = getCommandForID (commandID))
+    if (const ApplicationCommandInfo* const ci = getCommandForID (commandID))
         return ci->shortName;
 
-    return {};
+    return String();
 }
 
 String ApplicationCommandManager::getDescriptionOfCommand (const CommandID commandID) const noexcept
 {
-    if (auto* ci = getCommandForID (commandID))
+    if (const ApplicationCommandInfo* const ci = getCommandForID (commandID))
         return ci->description.isNotEmpty() ? ci->description
                                             : ci->shortName;
 
-    return {};
+    return String();
 }
 
 StringArray ApplicationCommandManager::getCommandCategories() const
@@ -188,7 +186,7 @@ bool ApplicationCommandManager::invoke (const ApplicationCommandTarget::Invocati
     bool ok = false;
     ApplicationCommandInfo commandInfo (0);
 
-    if (auto* target = getTargetForCommand (inf.commandID, commandInfo))
+    if (ApplicationCommandTarget* const target = getTargetForCommand (inf.commandID, commandInfo))
     {
         ApplicationCommandTarget::InvocationInfo info (inf);
         info.commandFlags = commandInfo.flags;
@@ -250,7 +248,7 @@ ApplicationCommandTarget* ApplicationCommandManager::findDefaultComponentTarget(
 
     if (c == nullptr)
     {
-        if (auto* activeWindow = TopLevelWindow::getActiveTopLevelWindow())
+        if (TopLevelWindow* const activeWindow = TopLevelWindow::getActiveTopLevelWindow())
         {
             c = activeWindow->getPeer()->getLastFocusedSubcomponent();
 
@@ -261,12 +259,12 @@ ApplicationCommandTarget* ApplicationCommandManager::findDefaultComponentTarget(
 
     if (c == nullptr && Process::isForegroundProcess())
     {
-        auto& desktop = Desktop::getInstance();
+        Desktop& desktop = Desktop::getInstance();
 
         // getting a bit desperate now: try all desktop comps..
         for (int i = desktop.getNumComponents(); --i >= 0;)
-            if (auto* peer = desktop.getComponent(i)->getPeer())
-                if (auto* target = findTargetForComponent (peer->getLastFocusedSubcomponent()))
+            if (ComponentPeer* const peer = desktop.getComponent(i)->getPeer())
+                if (ApplicationCommandTarget* const target = findTargetForComponent (peer->getLastFocusedSubcomponent()))
                     return target;
     }
 
@@ -276,11 +274,11 @@ ApplicationCommandTarget* ApplicationCommandManager::findDefaultComponentTarget(
         // component that really should get the event. And if not, the event will
         // still be passed up to the top level window anyway, so let's send it to the
         // content comp.
-        if (auto* resizableWindow = dynamic_cast<ResizableWindow*> (c))
-            if (auto* content = resizableWindow->getContentComponent())
+        if (ResizableWindow* const resizableWindow = dynamic_cast<ResizableWindow*> (c))
+            if (Component* const content = resizableWindow->getContentComponent())
                 c = content;
 
-        if (auto* target = findTargetForComponent (c))
+        if (ApplicationCommandTarget* const target = findTargetForComponent (c))
             return target;
     }
 

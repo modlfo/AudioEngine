@@ -2,54 +2,27 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2015 - ROLI Ltd.
 
-   JUCE is an open source library subject to commercial or open-source
-   licensing.
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   Details of these licenses can be found at: www.gnu.org/licenses
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
+   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-   Or: You may also use this code under the terms of the GPL v3 (see
-   www.gnu.org/licenses).
+   ------------------------------------------------------------------------------
 
-   JUCE IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL WARRANTIES, WHETHER
-   EXPRESSED OR IMPLIED, INCLUDING MERCHANTABILITY AND FITNESS FOR PURPOSE, ARE
-   DISCLAIMED.
+   To release a closed-source product which uses JUCE, commercial licenses are
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
 #if JUCE_MAC
-
-struct WebViewKeyEquivalentResponder : public ObjCClass<WebView>
-{
-    WebViewKeyEquivalentResponder() : ObjCClass<WebView> ("WebViewKeyEquivalentResponder_")
-    {
-        addMethod (@selector (performKeyEquivalent:), performKeyEquivalent, @encode (BOOL), "@:@");
-        registerClass();
-    }
-
-private:
-    static BOOL performKeyEquivalent (id self, SEL selector, NSEvent* event)
-    {
-        NSResponder* first = [[self window] firstResponder];
-        if (([event modifierFlags] & NSDeviceIndependentModifierFlagsMask) == NSCommandKeyMask)
-        {
-            if ([[event charactersIgnoringModifiers] isEqualToString:@"x"]) return [NSApp sendAction:@selector(cut:)       to:first from:self];
-            if ([[event charactersIgnoringModifiers] isEqualToString:@"c"]) return [NSApp sendAction:@selector(copy:)      to:first from:self];
-            if ([[event charactersIgnoringModifiers] isEqualToString:@"v"]) return [NSApp sendAction:@selector(paste:)     to:first from:self];
-            if ([[event charactersIgnoringModifiers] isEqualToString:@"a"]) return [NSApp sendAction:@selector(selectAll:) to:first from:self];
-        }
-
-        objc_super s = { self, [WebView class] };
-        return ObjCMsgSendSuper<BOOL, NSEvent*> (&s, selector, event);
-    }
-};
 
 struct DownloadClickDetectorClass  : public ObjCClass<NSObject>
 {
@@ -62,8 +35,6 @@ struct DownloadClickDetectorClass  : public ObjCClass<NSObject>
         addMethod (@selector (webView:decidePolicyForNewWindowAction:request:newFrameName:decisionListener:),
                    decidePolicyForNewWindowAction, "v@:@@@@@");
         addMethod (@selector (webView:didFinishLoadForFrame:), didFinishLoadForFrame, "v@:@@");
-        addMethod (@selector (webView:didFailLoadWithError:forFrame:),  didFailLoadWithError,  "v@:@@@");
-        addMethod (@selector (webView:didFailProvisionalLoadWithError:forFrame:),  didFailLoadWithError,  "v@:@@@");
         addMethod (@selector (webView:willCloseFrame:), willCloseFrame, "v@:@@");
         addMethod (@selector (webView:runOpenPanelForFileButtonWithResultListener:allowMultipleFiles:), runOpenPanel, "v@:@@", @encode (BOOL));
 
@@ -79,7 +50,7 @@ private:
         if (NSURL* url = [actionInformation valueForKey: nsStringLiteral ("WebActionOriginalURLKey")])
             return nsStringToJuce ([url absoluteString]);
 
-        return {};
+        return String();
     }
 
     static void decidePolicyForNavigationAction (id self, SEL, WebView*, NSDictionary* actionInformation,
@@ -107,20 +78,6 @@ private:
         }
     }
 
-    static void didFailLoadWithError (id self, SEL, WebView* sender, NSError* error, WebFrame* frame)
-    {
-        if ([frame isEqual: [sender mainFrame]] && error != nullptr && [error code] != NSURLErrorCancelled)
-        {
-            String errorString (nsStringToJuce ([error localizedDescription]));
-
-            bool proceedToErrorPage = getOwner (self)->pageLoadHadNetworkError (errorString);
-
-            // WebKit doesn't have an internal error page, so make a really simple one ourselves
-            if (proceedToErrorPage)
-                getOwner(self)->goToURL (String ("data:text/plain;charset=UTF-8,") + errorString);
-        }
-    }
-
     static void willCloseFrame (id self, SEL, WebView*, WebFrame*)
     {
         getOwner (self)->windowCloseRequest();
@@ -135,8 +92,10 @@ private:
         if (allowMultipleFiles ? chooser.browseForMultipleFilesToOpen()
                                : chooser.browseForFileToOpen())
         {
-            for (auto& f : chooser.getResults())
-                [resultListener chooseFilename: juceStringToNS (f.getFullPathName())];
+            const Array<File>& files = chooser.getResults();
+
+            for (int i = 0; i < files.size(); ++i)
+                [resultListener chooseFilename: juceStringToNS (files.getReference(i).getFullPathName())];
         }
        #else
         ignoreUnused (resultListener, allowMultipleFiles);
@@ -219,12 +178,9 @@ public:
     Pimpl (WebBrowserComponent* owner)
     {
        #if JUCE_MAC
-        static WebViewKeyEquivalentResponder webviewClass;
-        webView = (WebView*) webviewClass.createInstance();
-
-        webView = [webView initWithFrame: NSMakeRect (0, 0, 100.0f, 100.0f)
-                               frameName: nsEmptyString()
-                               groupName: nsEmptyString()];
+        webView = [[WebView alloc] initWithFrame: NSMakeRect (0, 0, 100.0f, 100.0f)
+                                       frameName: nsEmptyString()
+                                       groupName: nsEmptyString()];
         setView (webView);
 
         static DownloadClickDetectorClass cls;
@@ -464,19 +420,4 @@ void WebBrowserComponent::visibilityChanged()
 
 void WebBrowserComponent::focusGained (FocusChangeType)
 {
-}
-
-void WebBrowserComponent::clearCookies()
-{
-    NSHTTPCookieStorage* storage = [NSHTTPCookieStorage sharedHTTPCookieStorage];
-
-    if (NSArray* cookies = [storage cookies])
-    {
-        const NSUInteger n = [cookies count];
-
-        for (NSUInteger i = 0; i < n; ++i)
-            [storage deleteCookie: [cookies objectAtIndex: i]];
-    }
-
-    [[NSUserDefaults standardUserDefaults] synchronize];
 }

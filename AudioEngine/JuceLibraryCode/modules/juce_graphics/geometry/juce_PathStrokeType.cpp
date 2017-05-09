@@ -2,24 +2,22 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2015 - ROLI Ltd.
 
-   JUCE is an open source library subject to commercial or open-source
-   licensing.
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   Details of these licenses can be found at: www.gnu.org/licenses
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
+   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-   Or: You may also use this code under the terms of the GPL v3 (see
-   www.gnu.org/licenses).
+   ------------------------------------------------------------------------------
 
-   JUCE IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL WARRANTIES, WHETHER
-   EXPRESSED OR IMPLIED, INCLUDING MERCHANTABILITY AND FITNESS FOR PURPOSE, ARE
-   DISCLAIMED.
+   To release a closed-source product which uses JUCE, commercial licenses are
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
@@ -78,19 +76,19 @@ namespace PathStrokeHelpers
     {
         if (x2 != x3 || y2 != y3)
         {
-            auto dx1 = x2 - x1;
-            auto dy1 = y2 - y1;
-            auto dx2 = x4 - x3;
-            auto dy2 = y4 - y3;
-            auto divisor = dx1 * dy2 - dx2 * dy1;
+            const float dx1 = x2 - x1;
+            const float dy1 = y2 - y1;
+            const float dx2 = x4 - x3;
+            const float dy2 = y4 - y3;
+            const float divisor = dx1 * dy2 - dx2 * dy1;
 
-            if (divisor == 0.0f)
+            if (divisor == 0)
             {
-                if (! ((dx1 == 0.0f && dy1 == 0.0f) || (dx2 == 0.0f && dy2 == 0.0f)))
+                if (! ((dx1 == 0 && dy1 == 0) || (dx2 == 0 && dy2 == 0)))
                 {
-                    if (dy1 == 0.0f && dy2 != 0.0f)
+                    if (dy1 == 0 && dy2 != 0)
                     {
-                        auto along = (y1 - y3) / dy2;
+                        const float along = (y1 - y3) / dy2;
                         intersectionX = x3 + along * dx2;
                         intersectionY = y1;
 
@@ -102,9 +100,9 @@ namespace PathStrokeHelpers
                         return along >= 0 && along <= 1.0f;
                     }
 
-                    if (dy2 == 0.0f && dy1 != 0.0f)
+                    if (dy2 == 0 && dy1 != 0)
                     {
-                        auto along = (y3 - y1) / dy1;
+                        const float along = (y3 - y1) / dy1;
                         intersectionX = x1 + along * dx1;
                         intersectionY = y3;
 
@@ -116,9 +114,9 @@ namespace PathStrokeHelpers
                         return along >= 0 && along <= 1.0f;
                     }
 
-                    if (dx1 == 0.0f && dx2 != 0.0f)
+                    if (dx1 == 0 && dx2 != 0)
                     {
-                        auto along = (x1 - x3) / dx2;
+                        const float along = (x1 - x3) / dx2;
                         intersectionX = x1;
                         intersectionY = y3 + along * dy2;
 
@@ -131,9 +129,9 @@ namespace PathStrokeHelpers
                         return along >= 0 && along <= 1.0f;
                     }
 
-                    if (dx2 == 0.0f && dx1 != 0.0f)
+                    if (dx2 == 0 && dx1 != 0)
                     {
-                        auto along = (x3 - x1) / dx1;
+                        const float along = (x3 - x1) / dx1;
                         intersectionX = x3;
                         intersectionY = y1 + along * dy1;
 
@@ -153,14 +151,14 @@ namespace PathStrokeHelpers
                 return false;
             }
 
-            auto along1 = ((y1 - y3) * dx2 - (x1 - x3) * dy2) / divisor;
+            const float along1 = ((y1 - y3) * dx2 - (x1 - x3) * dy2) / divisor;
 
             intersectionX = x1 + along1 * dx1;
             intersectionY = y1 + along1 * dy1;
 
             if (along1 >= 0 && along1 <= 1.0f)
             {
-                auto along2 = ((y1 - y3) * dx1 - (x1 - x3) * dy1) / divisor;
+                const float along2 = ((y1 - y3) * dx1 - (x1 - x3) * dy1) / divisor;
 
                 if (along2 >= 0 && along2 <= 1.0f)
                 {
@@ -295,18 +293,18 @@ namespace PathStrokeHelpers
         {
             float offx1, offy1, offx2, offy2;
 
-            auto dx = x2 - x1;
-            auto dy = y2 - y1;
-            auto len = juce_hypot (dx, dy);
+            float dx = x2 - x1;
+            float dy = y2 - y1;
+            const float len = juce_hypot (dx, dy);
 
-            if (len == 0.0f)
+            if (len == 0)
             {
                 offx1 = offx2 = x1;
                 offy1 = offy2 = y1;
             }
             else
             {
-                auto offset = width / len;
+                const float offset = width / len;
                 dx *= offset;
                 dy *= offset;
 
@@ -326,8 +324,8 @@ namespace PathStrokeHelpers
             else
             {
                 // rounded ends
-                auto midx = (offx1 + offx2) * 0.5f;
-                auto midy = (offy1 + offy2) * 0.5f;
+                const float midx = (offx1 + offx2) * 0.5f;
+                const float midy = (offy1 + offy2) * 0.5f;
 
                 destPath.cubicTo (x1 + (offx1 - x1) * 0.55f, y1 + (offy1 - y1) * 0.55f,
                                   offx1 + (midx - offx1) * 0.45f, offy1 + (midy - offy1) * 0.45f,
@@ -371,10 +369,10 @@ namespace PathStrokeHelpers
     {
         while (amountAtEnd > 0 && subPath.size() > 0)
         {
-            auto& l = subPath.getReference (subPath.size() - 1);
-            auto dx = l.rx2 - l.rx1;
-            auto dy = l.ry2 - l.ry1;
-            auto len = juce_hypot (dx, dy);
+            LineSection& l = subPath.getReference (subPath.size() - 1);
+            float dx = l.rx2 - l.rx1;
+            float dy = l.ry2 - l.ry1;
+            const float len = juce_hypot (dx, dy);
 
             if (len <= amountAtEnd && subPath.size() > 1)
             {
@@ -386,7 +384,7 @@ namespace PathStrokeHelpers
             }
             else
             {
-                auto prop = jmin (0.9999f, amountAtEnd / len);
+                const float prop = jmin (0.9999f, amountAtEnd / len);
                 dx *= prop;
                 dy *= prop;
                 l.rx1 += dx;
@@ -399,10 +397,10 @@ namespace PathStrokeHelpers
 
         while (amountAtStart > 0 && subPath.size() > 0)
         {
-            auto& l = subPath.getReference (0);
-            auto dx = l.rx2 - l.rx1;
-            auto dy = l.ry2 - l.ry1;
-            auto len = juce_hypot (dx, dy);
+            LineSection& l = subPath.getReference (0);
+            float dx = l.rx2 - l.rx1;
+            float dy = l.ry2 - l.ry1;
+            const float len = juce_hypot (dx, dy);
 
             if (len <= amountAtStart && subPath.size() > 1)
             {
@@ -414,7 +412,7 @@ namespace PathStrokeHelpers
             }
             else
             {
-                auto prop = jmin (0.9999f, amountAtStart / len);
+                const float prop = jmin (0.9999f, amountAtStart / len);
                 dx *= prop;
                 dy *= prop;
                 l.rx2 -= dx;
@@ -436,12 +434,12 @@ namespace PathStrokeHelpers
         if (arrowhead != nullptr)
             shortenSubPath (subPath, arrowhead->startLength, arrowhead->endLength);
 
-        auto& firstLine = subPath.getReference (0);
+        const LineSection& firstLine = subPath.getReference (0);
 
-        auto lastX1 = firstLine.lx1;
-        auto lastY1 = firstLine.ly1;
-        auto lastX2 = firstLine.lx2;
-        auto lastY2 = firstLine.ly2;
+        float lastX1 = firstLine.lx1;
+        float lastY1 = firstLine.ly1;
+        float lastX2 = firstLine.lx2;
+        float lastY2 = firstLine.ly2;
 
         if (isClosed)
         {
@@ -474,11 +472,11 @@ namespace PathStrokeHelpers
             lastY2 = l.ly2;
         }
 
-        auto& lastLine = subPath.getReference (subPath.size() - 1);
+        const LineSection& lastLine = subPath.getReference (subPath.size() - 1);
 
         if (isClosed)
         {
-            auto& l = subPath.getReference (0);
+            const LineSection& l = subPath.getReference (0);
 
             addEdgeAndJoint (destPath, jointStyle,
                              maxMiterExtensionSquared, width,
@@ -507,7 +505,7 @@ namespace PathStrokeHelpers
 
         for (int i = subPath.size() - 1; --i >= 0;)
         {
-            auto& l = subPath.getReference (i);
+            const LineSection& l = subPath.getReference (i);
 
             addEdgeAndJoint (destPath, jointStyle,
                              maxMiterExtensionSquared, width,
@@ -574,7 +572,7 @@ namespace PathStrokeHelpers
         // left/right-hand lines along either side of it...
         PathFlatteningIterator it (*sourcePath, transform, Path::defaultToleranceForMeasurement / extraAccuracy);
 
-        Array<LineSection> subPath;
+        Array <LineSection> subPath;
         subPath.ensureStorageAllocated (512);
         LineSection l;
         l.x1 = 0;
@@ -602,20 +600,20 @@ namespace PathStrokeHelpers
             float dx = l.x2 - l.x1;
             float dy = l.y2 - l.y1;
 
-            auto hypotSquared = dx * dx + dy * dy;
+            const float hypotSquared = dx*dx + dy*dy;
 
             if (it.closesSubPath || hypotSquared > minSegmentLength || it.isLastInSubpath())
             {
-                auto len = std::sqrt (hypotSquared);
+                const float len = std::sqrt (hypotSquared);
 
-                if (len == 0.0f)
+                if (len == 0)
                 {
                     l.rx1 = l.rx2 = l.lx1 = l.lx2 = l.x1;
                     l.ry1 = l.ry2 = l.ly1 = l.ly2 = l.y1;
                 }
                 else
                 {
-                    auto offset = width / len;
+                    const float offset = width / len;
                     dx *= offset;
                     dy *= offset;
 

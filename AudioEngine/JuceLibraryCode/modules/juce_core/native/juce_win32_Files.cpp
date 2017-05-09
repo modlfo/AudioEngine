@@ -2,20 +2,28 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2016 - ROLI Ltd.
 
-   JUCE is an open source library subject to commercial or open-source
-   licensing.
+   Permission is granted to use this software under the terms of the ISC license
+   http://www.isc.org/downloads/software-support-policy/isc-license/
 
-   The code included in this file is provided under the terms of the ISC license
-   http://www.isc.org/downloads/software-support-policy/isc-license. Permission
-   To use, copy, modify, and/or distribute this software for any purpose with or
-   without fee is hereby granted provided that the above copyright notice and
-   this permission notice appear in all copies.
+   Permission to use, copy, modify, and/or distribute this software for any
+   purpose with or without fee is hereby granted, provided that the above
+   copyright notice and this permission notice appear in all copies.
 
-   JUCE IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL WARRANTIES, WHETHER
-   EXPRESSED OR IMPLIED, INCLUDING MERCHANTABILITY AND FITNESS FOR PURPOSE, ARE
-   DISCLAIMED.
+   THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH REGARD
+   TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+   FITNESS. IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT,
+   OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+   USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+   TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE
+   OF THIS SOFTWARE.
+
+   -----------------------------------------------------------------------------
+
+   To release a closed-source product which uses other parts of JUCE not
+   licensed under the ISC terms, commercial licenses are available: visit
+   www.juce.com for more information.
 
   ==============================================================================
 */
@@ -27,28 +35,14 @@
 //==============================================================================
 namespace WindowsFileHelpers
 {
-    DWORD getAtts (const String& path) noexcept
+    DWORD getAtts (const String& path)
     {
         return GetFileAttributes (path.toWideCharPointer());
     }
 
-    bool changeAtts (const String& path, DWORD bitsToSet, DWORD bitsToClear) noexcept
+    int64 fileTimeToTime (const FILETIME* const ft)
     {
-        auto oldAtts = getAtts (path);
-
-        if (oldAtts == INVALID_FILE_ATTRIBUTES)
-            return false;
-
-        auto newAtts = ((oldAtts | bitsToSet) & ~bitsToClear);
-
-        return newAtts == oldAtts
-                || SetFileAttributes (path.toWideCharPointer(), newAtts) != FALSE;
-    }
-
-    int64 fileTimeToTime (const FILETIME* const ft) noexcept
-    {
-        static_assert (sizeof (ULARGE_INTEGER) == sizeof (FILETIME),
-                       "ULARGE_INTEGER is too small to hold FILETIME: please report!");
+        static_jassert (sizeof (ULARGE_INTEGER) == sizeof (FILETIME)); // tell me if this fails!
 
         return (int64) ((reinterpret_cast<const ULARGE_INTEGER*> (ft)->QuadPart - 116444736000000000LL) / 10000);
     }
@@ -101,7 +95,7 @@ namespace WindowsFileHelpers
         if (SHGetSpecialFolderPath (0, path, type, FALSE))
             return File (String (path));
 
-        return {};
+        return File();
     }
 
     File getModuleFileName (HINSTANCE moduleHandle)
@@ -154,7 +148,7 @@ bool File::hasWriteAccess() const
     if (fullPath.isEmpty())
         return true;
 
-    auto attr = WindowsFileHelpers::getAtts (fullPath);
+    const DWORD attr = WindowsFileHelpers::getAtts (fullPath);
 
     // NB: According to MS, the FILE_ATTRIBUTE_READONLY attribute doesn't work for
     // folders, and can be incorrectly set for some special folders, so we'll just say
@@ -164,11 +158,17 @@ bool File::hasWriteAccess() const
             || (attr & FILE_ATTRIBUTE_READONLY) == 0;
 }
 
-bool File::setFileReadOnlyInternal (bool shouldBeReadOnly) const
+bool File::setFileReadOnlyInternal (const bool shouldBeReadOnly) const
 {
-    return WindowsFileHelpers::changeAtts (fullPath,
-                                           shouldBeReadOnly ? FILE_ATTRIBUTE_READONLY : 0,
-                                           shouldBeReadOnly ? 0 : FILE_ATTRIBUTE_READONLY);
+    const DWORD oldAtts = WindowsFileHelpers::getAtts (fullPath);
+
+    if (oldAtts == INVALID_FILE_ATTRIBUTES)
+        return false;
+
+    const DWORD newAtts = shouldBeReadOnly ? (oldAtts |  FILE_ATTRIBUTE_READONLY)
+                                           : (oldAtts & ~FILE_ATTRIBUTE_READONLY);
+    return newAtts == oldAtts
+            || SetFileAttributes (fullPath.toWideCharPointer(), newAtts) != FALSE;
 }
 
 bool File::setFileExecutableInternal (bool /*shouldBeExecutable*/) const
@@ -598,7 +598,7 @@ File JUCE_CALLTYPE File::getSpecialLocation (const SpecialLocationType type)
 
         default:
             jassertfalse; // unknown type?
-            return {};
+            return File();
     }
 
     return WindowsFileHelpers::getSpecialFolderPath (csidlType);

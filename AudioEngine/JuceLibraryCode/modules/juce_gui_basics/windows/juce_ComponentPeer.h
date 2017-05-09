@@ -2,29 +2,28 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2015 - ROLI Ltd.
 
-   JUCE is an open source library subject to commercial or open-source
-   licensing.
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   Details of these licenses can be found at: www.gnu.org/licenses
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
+   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-   Or: You may also use this code under the terms of the GPL v3 (see
-   www.gnu.org/licenses).
+   ------------------------------------------------------------------------------
 
-   JUCE IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL WARRANTIES, WHETHER
-   EXPRESSED OR IMPLIED, INCLUDING MERCHANTABILITY AND FITNESS FOR PURPOSE, ARE
-   DISCLAIMED.
+   To release a closed-source product which uses JUCE, commercial licenses are
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#pragma once
+#ifndef JUCE_COMPONENTPEER_H_INCLUDED
+#define JUCE_COMPONENTPEER_H_INCLUDED
 
 
 //==============================================================================
@@ -312,14 +311,9 @@ public:
     virtual void setAlpha (float newAlpha) = 0;
 
     //==============================================================================
-    void handleMouseEvent (MouseInputSource::InputSourceType type, Point<float> positionWithinPeer, ModifierKeys newMods, float pressure,
-                           float orientation, int64 time, PenDetails pen = {}, int touchIndex = 0);
-
-    void handleMouseWheel (MouseInputSource::InputSourceType type, Point<float> positionWithinPeer,
-                           int64 time, const MouseWheelDetails&, int touchIndex = 0);
-
-    void handleMagnifyGesture (MouseInputSource::InputSourceType type, Point<float> positionWithinPeer,
-                               int64 time, float scaleFactor, int touchIndex = 0);
+    void handleMouseEvent (int touchIndex, Point<float> positionWithinPeer, ModifierKeys newMods, float pressure, int64 time);
+    void handleMouseWheel (int touchIndex, Point<float> positionWithinPeer, int64 time, const MouseWheelDetails&);
+    void handleMagnifyGesture (int touchIndex, Point<float> positionWithinPeer, int64 time, float scaleFactor);
 
     void handleUserClosingWindow();
 
@@ -366,15 +360,18 @@ protected:
     Component& component;
     const int styleFlags;
     Rectangle<int> lastNonFullscreenBounds;
-    ComponentBoundsConstrainer* constrainer = nullptr;
+    ComponentBoundsConstrainer* constrainer;
 
 private:
     //==============================================================================
     WeakReference<Component> lastFocusedComponent, dragAndDropTargetComponent;
-    Component* lastDragAndDropCompUnderMouse = nullptr;
+    Component* lastDragAndDropCompUnderMouse;
     const uint32 uniqueID;
-    bool isWindowMinimised = false;
+    bool isWindowMinimised;
     Component* getTargetForKeyPress();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ComponentPeer)
 };
+
+
+#endif   // JUCE_COMPONENTPEER_H_INCLUDED

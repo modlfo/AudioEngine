@@ -2,29 +2,28 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2015 - ROLI Ltd.
 
-   JUCE is an open source library subject to commercial or open-source
-   licensing.
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   Details of these licenses can be found at: www.gnu.org/licenses
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
+   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-   Or: You may also use this code under the terms of the GPL v3 (see
-   www.gnu.org/licenses).
+   ------------------------------------------------------------------------------
 
-   JUCE IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL WARRANTIES, WHETHER
-   EXPRESSED OR IMPLIED, INCLUDING MERCHANTABILITY AND FITNESS FOR PURPOSE, ARE
-   DISCLAIMED.
+   To release a closed-source product which uses JUCE, commercial licenses are
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#pragma once
+#ifndef JUCE_VIEWPORT_H_INCLUDED
+#define JUCE_VIEWPORT_H_INCLUDED
 
 
 //==============================================================================
@@ -213,12 +212,15 @@ public:
     bool isHorizontalScrollBarShown() const noexcept            { return showHScrollbar; }
 
     /** Changes the width of the scrollbars.
+
         If this isn't specified, the default width from the LookAndFeel class will be used.
+
         @see LookAndFeel::getDefaultScrollbarWidth
     */
     void setScrollBarThickness (int thickness);
 
     /** Returns the thickness of the scrollbars.
+
         @see setScrollBarThickness
     */
     int getScrollBarThickness() const;
@@ -238,15 +240,6 @@ public:
     */
     ScrollBar* getHorizontalScrollBar() noexcept                { return &horizontalScrollBar; }
 
-    /** True if there's any off-screen content that could be scrolled vertically,
-        or false if everything is currently visible.
-    */
-    bool canScrollVertically() const noexcept;
-
-    /** True if there's any off-screen content that could be scrolled horizontally,
-        or false if everything is currently visible.
-    */
-    bool canScrollHorizontally() const noexcept;
 
     /** Enables or disables drag-to-scroll functionality in the viewport. */
     void setScrollOnDragEnabled (bool shouldScrollOnDrag);
@@ -279,15 +272,15 @@ public:
 
 private:
     //==============================================================================
-    ScrollBar verticalScrollBar { true }, horizontalScrollBar { false };
-    Component contentHolder;
     WeakReference<Component> contentComp;
     Rectangle<int> lastVisibleArea;
-    int scrollBarThickness = 0;
-    int singleStepX = 16, singleStepY = 16;
-    bool showHScrollbar = true, showVScrollbar = true, deleteContent = true;
-    bool customScrollBarThickness = false;
-    bool allowScrollingWithoutScrollbarV = false, allowScrollingWithoutScrollbarH = false;
+    int scrollBarThickness;
+    int singleStepX, singleStepY;
+    bool showHScrollbar, showVScrollbar, deleteContent;
+    bool customScrollBarThickness;
+    bool allowScrollingWithoutScrollbarV, allowScrollingWithoutScrollbarH;
+    Component contentHolder;
+    ScrollBar verticalScrollBar, horizontalScrollBar;
 
     struct DragToScrollListener;
     friend struct DragToScrollListener;
@@ -306,3 +299,6 @@ private:
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Viewport)
 };
+
+
+#endif   // JUCE_VIEWPORT_H_INCLUDED
