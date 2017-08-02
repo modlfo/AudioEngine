@@ -14,5 +14,5 @@ script:
 
 before_install:
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get -qq update ; fi
-  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get install -y libasound2-dev ; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get install -y libasound2-dev libasound2-dev libfreetype6-dev libcurl4-gnutls-dev libx11-dev libxext-dev libxinerama-dev libxrandr-dev libxcursor-dev ; fi
 
